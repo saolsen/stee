@@ -7,3 +7,6 @@ edition = "2018"
 [dependencies]
 failure = "0.1.3"
 bytebuffer = { git = "https://github.com/terahxluna/rust-bytebuffer.git"  }
+
+[dev-dependencies]
+wasmi = "0.4.2"
