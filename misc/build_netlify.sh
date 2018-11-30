@@ -14,3 +14,4 @@ npm link
 cd ../../website
 npm link stee-js
 npm run build
+tree
