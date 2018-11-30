@@ -34,7 +34,15 @@ pub enum CompileError {
     #[fail(display = "Invalid type {:?}", token)]
     InvalidType {
         token: Token
-    }
+    },
+    #[fail(display = "Unknown Operator {:?} for types ({:?},{:?}", op, lhs, rhs)]
+    UnknownOperator {
+        op: Token,
+        lhs: TypeSpec,
+        rhs: TypeSpec
+    },
+    #[fail(display = "Not implemented yet.")]
+    NotImplemented
 }
 
 // @TODO: Tokens for keywords so I don't have to name-compare them and can just match them directly.
@@ -43,7 +51,7 @@ pub enum Token {
     EOF,
     INT(i64),
     FLOAT(f64),
-    Name(String),
+    NAME(String),
     ADD,
     SUB,
     MUL,
@@ -60,14 +68,18 @@ pub enum Token {
 
 #[derive(PartialEq, Debug)]
 pub enum Expression {
-    Int(i64),
-    Float(f64),
+    I32(i32),
+    U32(u32),
+    I64(i64),
+    U64(u64),
+    F32(f32),
+    F64(f64),
     Binary {
         op: Token,
         right: Box<Expression>,
         left: Box<Expression>,
     },
-    Name(String),
+    Name(String), // local or global variable probably.
     Call {
         func: String,
         args: Vec<Expression>,

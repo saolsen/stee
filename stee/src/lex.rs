@@ -36,7 +36,7 @@ fn get_next_token(src: &mut Peekable<Chars>) -> Result<Token, CompileError> {
                         }
                         break;
                     }
-                    Ok(Token::Name(name))
+                    Ok(Token::NAME(name))
                 },
                 // @TODO: Negative number parsing.
                 '0'...'9' => {
@@ -137,19 +137,19 @@ impl <'a> Lexer<'a> {
     }
 
     pub fn expect_a_name(&mut self) -> Result<String, CompileError> {
-        if let Token::Name(n) = self.token.clone() {
+        if let Token::NAME(n) = self.token.clone() {
             self.next_token()?;
             Ok(n)
         } else {
             Err(CompileError::InvalidToken {
-                expected: Token::Name("".to_string()),
+                expected: Token::NAME("".to_string()),
                 got: self.token.clone()
             })
         }
     }
 
     pub fn is_name(&mut self, string: &str) -> bool {
-        if let Token::Name(ref s) = self.token {
+        if let Token::NAME(ref s) = self.token {
             s == string
         } else {
             false
@@ -167,7 +167,7 @@ impl <'a> Lexer<'a> {
 
     pub fn expect_name(&mut self, string: &str) -> Result<(), CompileError> {
         if !self.match_name(string)? {
-            Err(CompileError::InvalidTokenName{expected: Token::Name(string.to_string()), got: self.token.clone()})
+            Err(CompileError::InvalidTokenName{expected: Token::NAME(string.to_string()), got: self.token.clone()})
         } else {
             Ok(())
         }
@@ -195,8 +195,8 @@ mod tests {
             l.next_token().unwrap();
         };
 
-        assert_token(Token::Name("abZc".to_string()));
-        assert_token(Token::Name("def".to_string()));
+        assert_token(Token::NAME("abZc".to_string()));
+        assert_token(Token::NAME("def".to_string()));
         assert_token(Token::INT(123));
         assert_token(Token::FLOAT(123.45));
         assert_token(Token::FLOAT(99.9e12));
@@ -206,7 +206,7 @@ mod tests {
         assert_token(Token::MUL);
         assert_token(Token::EQUALS);
         assert_token(Token::INT(123));
-        assert_token(Token::Name("wuoah".to_string()));
+        assert_token(Token::NAME("wuoah".to_string()));
         assert_token(Token::EOF);
     }
 }

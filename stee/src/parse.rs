@@ -6,13 +6,13 @@ fn parse_expr2(mut lexer: &mut Lexer) -> Result<Expression, CompileError> {
     match lexer.token.clone() {
         Token::INT(i) => {
             lexer.next_token()?;
-            Ok(Expression::Int(i))
+            Ok(Expression::I32(i as i32))
         },
         Token::FLOAT(f) => {
             lexer.next_token()?;
-            Ok(Expression::Float(f))
+            Ok(Expression::F32(f as f32))
         },
-        Token::Name(s) => {
+        Token::NAME(s) => {
             lexer.next_token()?;
             if let Token::LP = lexer.token { // this is basically is_token
                 lexer.next_token()?;
@@ -24,7 +24,7 @@ fn parse_expr2(mut lexer: &mut Lexer) -> Result<Expression, CompileError> {
                         args.push(parse_expr(&mut lexer)?);
                     }
                 }
-                lexer.expect_token(Token::RP);
+                lexer.expect_token(Token::RP)?;
                 Ok(Expression::Call {func: s, args})
             } else {
                 Ok(Expression::Name(s))
@@ -62,8 +62,8 @@ fn parse_expr(mut lexer: &mut Lexer) -> Result<Expression, CompileError> {
     Ok(result)
 }
 
-fn parse_typespec(mut lexer: &mut Lexer) -> Result<TypeSpec, CompileError> {
-    if let Token::Name(name) = lexer.token.clone() {
+fn parse_typespec(lexer: &mut Lexer) -> Result<TypeSpec, CompileError> {
+    if let Token::NAME(name) = lexer.token.clone() {
         lexer.next_token()?;
         match name.as_ref() {
             "i32" => Ok(TypeSpec::I32),
@@ -75,14 +75,14 @@ fn parse_typespec(mut lexer: &mut Lexer) -> Result<TypeSpec, CompileError> {
     } else {
         // @TODO: This isn't really the right error.
         Err(CompileError::InvalidToken {
-            expected: Token::Name("".to_string()),
+            expected: Token::NAME("".to_string()),
             got: lexer.token.clone()
         })
     }
 }
 
 fn parse_param(mut lexer: &mut Lexer) -> Result<FuncParam, CompileError> {
-    if let Token::Name(name) = lexer.token.clone() {
+    if let Token::NAME(name) = lexer.token.clone() {
         lexer.next_token()?;
         lexer.expect_token(Token::COLON)?;
         let typespec = parse_typespec(&mut lexer)?;
@@ -93,7 +93,7 @@ fn parse_param(mut lexer: &mut Lexer) -> Result<FuncParam, CompileError> {
     } else {
         // @TODO: This isn't really the right error.
         Err(CompileError::InvalidToken {
-            expected: Token::Name("".to_string()),
+            expected: Token::NAME("".to_string()),
             got: lexer.token.clone()
         })
     }
@@ -101,13 +101,13 @@ fn parse_param(mut lexer: &mut Lexer) -> Result<FuncParam, CompileError> {
 
 fn parse_statement(mut lexer: &mut Lexer) -> Result<Statement, CompileError> {
     match lexer.token.clone() {
-        Token::Name(ref n) if n == "return" => {
+        Token::NAME(ref n) if n == "return" => {
             // return statement
             lexer.next_token()?;
             let exp = parse_expr(&mut lexer)?;
             Ok(Statement::RETURN(exp))
         },
-        Token::Name(ref n) if n == "var" => {
+        Token::NAME(ref n) if n == "var" => {
             // declaration
             lexer.next_token()?;
             let var = lexer.expect_a_name()?;
@@ -118,7 +118,7 @@ fn parse_statement(mut lexer: &mut Lexer) -> Result<Statement, CompileError> {
                 typespec
             })
         },
-        Token::Name(ref n) => {
+        Token::NAME(_) => {
             // assignment
             let var = lexer.expect_a_name()?;
             lexer.expect_token(Token::EQUALS)?;
@@ -147,7 +147,7 @@ fn parse_statement_block(mut lexer: &mut Lexer) -> Result<Vec<Statement>, Compil
 
 fn parse_func(mut lexer: &mut Lexer) -> Result<Declaration, CompileError> {
     lexer.expect_name("func")?;
-    if let Token::Name(name) = lexer.token.clone() {
+    if let Token::NAME(name) = lexer.token.clone() {
         lexer.next_token()?;
         lexer.expect_token(Token::LP)?;
         let mut params : Vec<FuncParam> = vec![];
@@ -166,7 +166,7 @@ fn parse_func(mut lexer: &mut Lexer) -> Result<Declaration, CompileError> {
         Ok(Declaration::FUNC {name: name, params, return_type, block})
     } else {
         Err(CompileError::InvalidToken{
-            expected: Token::Name("".to_string()),
+            expected: Token::NAME("".to_string()),
             got: lexer.token.clone()
         })
     }
