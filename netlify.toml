@@ -1,0 +1,3 @@
+[build]
+publish = "website/dist"
+command = "./build_netlify.sh"
