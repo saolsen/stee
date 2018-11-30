@@ -1,0 +1,9 @@
+[package]
+name = "stee"
+version = "0.1.0"
+authors = ["saolsen <steve.olsen@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+failure = "0.1.3"
+bytebuffer = { git = "https://github.com/terahxluna/rust-bytebuffer.git"  }
