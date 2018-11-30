@@ -40,7 +40,7 @@ enum WasmOperator {
     BrTable = 0x0e,
     Return = 0x0f,
     
-    call = 0x10,
+    Call = 0x10,
     call_indirect = 0x11,
 
     drop = 0x1a,
@@ -451,7 +451,7 @@ fn new_buffer() -> ByteBuffer {
     buffer
 }
 
-fn emit_exp(fns: &Vec<String>, vars: &Vec<String>, mut buf: &mut ByteBuffer, exp: &Expression) -> Result<TypeSpec, CompileError> {
+fn emit_exp(fns: &Vec<&Func>, vars: &Vec<Var>, mut buf: &mut ByteBuffer, exp: &Expression) -> Result<TypeSpec, CompileError> {
     match exp {
         Expression::I32(i) => { buf.write_u8(WasmOperator::I32Const as u8); write_leb128(*i as u64, &mut buf); return Ok(TypeSpec::I32)},
         Expression::U32(i) => { buf.write_u8(WasmOperator::I32Const as u8); write_leb128(*i as u64, &mut buf); return Ok(TypeSpec::U32)},
@@ -463,41 +463,54 @@ fn emit_exp(fns: &Vec<String>, vars: &Vec<String>, mut buf: &mut ByteBuffer, exp
             let lhs = emit_exp(fns, vars, buf, left)?;
             let rhs = emit_exp(fns, vars, buf, right)?;
             match (op, lhs, rhs) {
+                // @TODO: Add all the operators!
                 (Token::ADD, TypeSpec::I32, TypeSpec::I32) => { buf.write_u8(WasmOperator::I32Add as u8); return Ok(TypeSpec::I32) },
                 _ => { return Err(CompileError::UnknownOperator{ op: op.clone(), lhs, rhs }) }
             }
         },
         Expression::Name(n) => {
             println!("DEBUG: {:?}, {}", vars, n);
-            let index = vars.iter().position(|name| name == n).unwrap(); // @TODO: This is only checking locals, not globals.
+            let index = vars.iter().position(|var| &var.name == n).unwrap(); // @TODO: This is only checking params and locals, not globals.
             println!("DEBUG: {}", index);
             buf.write_u8(WasmOperator::GetLocal as u8);
             write_leb128(index as u64, &mut buf);
-            return Ok(TypeSpec::I32);
+            return Ok(vars[index].typespec);
         },
-        /*
         Expression::Call{func, args} => {
-            println!("DEBUG: {:?}, {}", fns, func);
-            let index = fns.iter().position(|f| f == func).unwrap();
-            println!("DEBUG: {}", index);
+            let mut arg_types = vec![];
             for arg in args {
-                emit_exp(fns, vars, buf, arg);
+                arg_types.push(emit_exp(fns, vars, buf, arg)?);
             }
-            buf.write_u8(0x10); // Call
-            write_leb128(index as u64, &mut buf);
-        } */
+            match (func, &arg_types) {
+                // @TODO: Figure out how to match vectors here for the builtin functions!
+                // test fake builtin function
+                //("add", [TypeSpec::I32, TypeSpec::I32]) => { buf.write_u8(WasmOperator::I32Add as u8); return Ok(TypeSpec::I32) },
+                _ => {
+                    // Check for user defined functions.
+                    if let Some(index) = fns.iter().position(|f| &f.name == func) {
+                        // @TODO: Check types!, there will be multiple of every function name!
+                        buf.write_u8(WasmOperator::Call as u8);
+                        write_leb128(index as u64, &mut buf);
+                        return Ok(fns[index].return_type);
+                    } else {
+                        return Err(CompileError::UnknownFunction{func: func.clone(), arg_types: arg_types.clone()})
+                    }
+
+                }
+            }
+        }
         _ => return Err(CompileError::NotImplemented)
     }
 }
 
 // Declarations have to be done up front so won't hit this?
-fn emit_statement(fns: &Vec<String>, vars: &Vec<String>, mut buf: &mut ByteBuffer, statement: &Statement) {
+fn emit_statement(fns: &Vec<&Func>, vars: &Vec<Var>, mut buf: &mut ByteBuffer, statement: &Statement) {
     match statement {
         Statement::ASSIGN {name, expression} => {
             // @TODO: There's like tee local and stuff, since I'm doing 0 optimization so far whatev.
             emit_exp(fns, vars, &mut buf, expression);
             // set local
-            let index = vars.iter().position(|v| v == name).unwrap(); // @TODO: Type check before here lol
+            let index = vars.iter().position(|v| &v.name == name).unwrap(); // @TODO: Type check before here lol
             buf.write_u8(0x21); // set local
             write_leb128(index as u64, &mut buf);
         },
@@ -510,24 +523,19 @@ fn emit_statement(fns: &Vec<String>, vars: &Vec<String>, mut buf: &mut ByteBuffe
 }
 
 pub fn emit_module(module: Module) -> ByteBuffer {
-    let mut functs = vec![];
+    let mut funcs = vec![];
     for decl in &module.declarations {
-        if let Declaration::FUNC {name, params, return_type, block} = decl {
-            functs.push(
-                (name,
-                 params.len() as u32,
-                 params.iter().map(|p| p.typespec).collect::<Vec<TypeSpec>>(),
-                 return_type,
-                )
-            );
+        if let Declaration::FUNC {func} = decl {
+            funcs.push(func);
         }
     }
 
     let mut type_section = new_buffer();
-    write_leb128(functs.len() as u64, &mut type_section);
-    for (name, num_params, param_types, return_type) in &functs {
+    write_leb128(funcs.len() as u64, &mut type_section);
+    for func in &funcs {
         type_section.write_u8(func_type);
-        write_leb128(*num_params as u64, &mut type_section);
+        write_leb128(func.params.len() as u64, &mut type_section);
+        let param_types = func.params.iter().map(|p| p.var.typespec).collect::<Vec<TypeSpec>>();
         for t in param_types {
             match t {
                 TypeSpec::I32 => type_section.write_u8(i32_type),
@@ -535,91 +543,89 @@ pub fn emit_module(module: Module) -> ByteBuffer {
                 TypeSpec::I64 => type_section.write_u8(i64_type),
                 TypeSpec::U64 => type_section.write_u8(i64_type),
                 TypeSpec::F32 => type_section.write_u8(f32_type),
-                TypeSpec::F64 => type_section.write_u8(f64_type)
+                TypeSpec::F64 => type_section.write_u8(f64_type),
+                _ => () // @TODO: Throw  error on null
             }
         }
-        if let Some(t) = return_type {
-            write_leb128(1, &mut type_section);
-            match t {
-                TypeSpec::I32 => type_section.write_u8(i32_type),
-                TypeSpec::U32 => type_section.write_u8(i32_type),
-                TypeSpec::I64 => type_section.write_u8(i64_type),
-                TypeSpec::U64 => type_section.write_u8(i64_type),
-                TypeSpec::F32 => type_section.write_u8(f32_type),
-                TypeSpec::F64 => type_section.write_u8(f64_type)
-            }
-        } else {
-            write_leb128(0, &mut type_section);
+        match func.return_type {
+            TypeSpec::NULL => { write_leb128(0, &mut type_section); }
+            TypeSpec::I32 => { write_leb128(1, &mut type_section); type_section.write_u8(i32_type) },
+            TypeSpec::U32 => { write_leb128(1, &mut type_section); type_section.write_u8(i32_type) },
+            TypeSpec::I64 => { write_leb128(1, &mut type_section); type_section.write_u8(i64_type) },
+            TypeSpec::U64 => { write_leb128(1, &mut type_section); type_section.write_u8(i64_type) },
+            TypeSpec::F32 => { write_leb128(1, &mut type_section); type_section.write_u8(f32_type) },
+            TypeSpec::F64 => { write_leb128(1, &mut type_section); type_section.write_u8(f64_type) }
         }
     }
 
     let mut function_section = new_buffer();
-    write_leb128(functs.len() as u64, &mut function_section);
-    for i in 0..functs.len() {
+    write_leb128(funcs.len() as u64, &mut function_section);
+    for i in 0..funcs.len() {
         write_leb128(i as u64, &mut function_section);
     }
 
     let mut export_section = new_buffer();
-    write_leb128(functs.len() as u64, &mut export_section);
-    for (i, (name, num_params, param_types, return_type)) in functs.iter().enumerate() {
+    write_leb128(funcs.len() as u64, &mut export_section);
+    for (i, func) in funcs.iter().enumerate() {
         //println!("DEBUG: {:?} {:?} {:?}", name, name.len() as u32, name.as_bytes());
-        write_leb128(name.len() as u64, &mut export_section);
-        export_section.write_bytes(name.as_bytes());
+        write_leb128(func.name.len() as u64, &mut export_section);
+        export_section.write_bytes(func.name.as_bytes());
         let function_export_kind = 0;
         export_section.write_u8(0); // Function Type
         write_leb128(i as u64, &mut export_section); // which function
     }
 
     let mut code_section = new_buffer();
-    write_leb128(functs.len() as u64, &mut code_section);
+    write_leb128(funcs.len() as u64, &mut code_section);
 
-    let funct_names = functs.iter().map(|f| f.0.clone()).collect::<Vec<String>>();
+    //let funct_names = functs.iter().map(|f| f.0.clone()).collect::<Vec<String>>();
 
-    for decl in &module.declarations {
-        if let Declaration::FUNC {name, params, return_type, block} = decl {
-
-            // @TODO: Get index for all the variable names (and also function calls)
-            // @TODO: should be able to have this be all refs? maybe?
-            let mut vars = vec![];
-            for param in params {
-                vars.push(param.name.clone());
-            }
-
-            for stmt in block {
-                if let Statement::LOCAL{ name, typespec } = stmt {
-                    vars.push(name.clone());
-                }
-            }
-
-            let mut func_body = new_buffer();
-            write_leb128(vars.len() as u64 - params.len() as u64, &mut func_body); // num locals
-
-            // @OPTIMIZE: These can be specified in blocks of same type vars. Useful for compression
-            // and for arrays on the stack.
-            for stmt in block {
-                if let Statement::LOCAL {name, typespec} = stmt {
-                    write_leb128(1, &mut func_body);
-                    match typespec {
-                        TypeSpec::I32 => func_body.write_u8(0x7f),
-                        TypeSpec::U32 => func_body.write_u8(0x7f),
-                        TypeSpec::I64 => func_body.write_u8(0x7e),
-                        TypeSpec::U64 => func_body.write_u8(0x7e),
-                        TypeSpec::F32 => func_body.write_u8(0x7d),
-                        TypeSpec::F64 => func_body.write_u8(0x7c),
-                    }
-                }
-            }
-
-            // emit the code
-            for stmt in block {
-                emit_statement(&funct_names, &vars, &mut func_body, stmt);
-            }
-
-            // end
-            func_body.write_u8(0x0B); // end function
-            write_leb128(func_body.len() as u64, &mut code_section);
-            code_section.write_bytes(&func_body.to_bytes());
+    /* for decl in &module.declarations {
+            if let Declaration::FUNC {name, params, return_type, block} = decl { */
+    for func in &funcs {
+        // @TODO: Get index for all the variable names (and also function calls)
+        // @TODO: should be able to have this be all refs? maybe?
+        let mut vars = vec![];
+        for param in &func.params {
+            vars.push(param.var.clone());
         }
+
+        for stmt in &func.block {
+            if let Statement::LOCAL{ var } = stmt {
+                vars.push(var.clone());
+            }
+        }
+
+        let mut func_body = new_buffer();
+        write_leb128(vars.len() as u64 - func.params.len() as u64, &mut func_body); // num locals
+
+        // @OPTIMIZE: These can be specified in blocks of same type vars. Useful for compression
+        // and for arrays on the stack.
+        for stmt in &func.block {
+            if let Statement::LOCAL { var } = stmt {
+                write_leb128(1, &mut func_body);
+                match var.typespec {
+                    TypeSpec::I32 => func_body.write_u8(0x7f),
+                    TypeSpec::U32 => func_body.write_u8(0x7f),
+                    TypeSpec::I64 => func_body.write_u8(0x7e),
+                    TypeSpec::U64 => func_body.write_u8(0x7e),
+                    TypeSpec::F32 => func_body.write_u8(0x7d),
+                    TypeSpec::F64 => func_body.write_u8(0x7c),
+                    _ => () // @TODO: Throw  error on null
+                }
+            }
+        }
+
+        // emit the code
+        for stmt in &func.block {
+            emit_statement(&funcs, &vars, &mut func_body, &stmt);
+        }
+
+        // end
+        func_body.write_u8(0x0B); // end function
+        write_leb128(func_body.len() as u64, &mut code_section);
+        code_section.write_bytes(&func_body.to_bytes());
+    
     }
 
     // @TODO: Data section is where we load the inital memory. Will be needed for the

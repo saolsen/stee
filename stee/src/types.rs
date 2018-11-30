@@ -41,6 +41,11 @@ pub enum CompileError {
         lhs: TypeSpec,
         rhs: TypeSpec
     },
+    #[fail(display = "Unknown Function {:?} for arg types {:?}", func, arg_types)]
+    UnknownFunction{
+        func: String,
+        arg_types: Vec<TypeSpec>
+    },
     #[fail(display = "Not implemented yet.")]
     NotImplemented
 }
@@ -88,6 +93,7 @@ pub enum Expression {
 
 #[derive(PartialEq, Debug, Clone, Copy)]
 pub enum TypeSpec {
+    NULL,
     I32,
     U32,
     I64,
@@ -96,24 +102,33 @@ pub enum TypeSpec {
     F64
 }
 
-#[derive(PartialEq, Debug)]
-pub struct FuncParam {
+#[derive(PartialEq, Debug, Clone)]
+pub struct Var {
     pub name: String,
     pub typespec: TypeSpec,
+}
+
+#[derive(PartialEq, Debug)]
+pub struct FuncParam {
+    pub var: Var
+}
+
+#[derive(PartialEq, Debug)]
+pub struct Func {
+    pub name: String,
+    pub params: Vec<FuncParam>,
+    pub return_type: TypeSpec,
+    pub block: Vec<Statement>,
 }
 
 #[derive(PartialEq, Debug)]
 pub enum Declaration {
     NONE,
     FUNC {
-        name: String,
-        params: Vec<FuncParam>,
-        return_type: Option<TypeSpec>,
-        block: Vec<Statement>,
+        func: Func
     },
     GLOBAL { // this could be a global or a const.
-        name: String,
-        typespec: TypeSpec,
+        var: Var
     },
     // types like structs and enums?
 }
@@ -122,8 +137,7 @@ pub enum Declaration {
 pub enum Statement {
     NULL,
     LOCAL {
-        name: String,
-        typespec: TypeSpec,
+        var: Var
     },
     ASSIGN {
         name: String,

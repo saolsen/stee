@@ -87,8 +87,10 @@ fn parse_param(mut lexer: &mut Lexer) -> Result<FuncParam, CompileError> {
         lexer.expect_token(Token::COLON)?;
         let typespec = parse_typespec(&mut lexer)?;
         Ok(FuncParam {
-            name: name,
-            typespec: typespec
+            var: Var {
+                name: name,
+                typespec: typespec
+            }
         })
     } else {
         // @TODO: This isn't really the right error.
@@ -114,8 +116,10 @@ fn parse_statement(mut lexer: &mut Lexer) -> Result<Statement, CompileError> {
             lexer.expect_token(Token::COLON)?;
             let typespec = parse_typespec(&mut lexer)?;
             Ok(Statement::LOCAL {
-                name: var,
-                typespec
+                var: Var {
+                    name: var,
+                    typespec
+                }
             })
         },
         Token::NAME(_) => {
@@ -158,12 +162,12 @@ fn parse_func(mut lexer: &mut Lexer) -> Result<Declaration, CompileError> {
             }
         }
         lexer.expect_token(Token::RP)?;
-        let mut return_type = None;
+        let mut return_type = TypeSpec::NULL;
         if lexer.match_token(Token::COLON)? {
-            return_type = Some(parse_typespec(&mut lexer)?);
+            return_type = parse_typespec(&mut lexer)?;
         }
         let block = parse_statement_block(&mut lexer)?;
-        Ok(Declaration::FUNC {name: name, params, return_type, block})
+        Ok(Declaration::FUNC {func: Func{name: name, params, return_type, block}})
     } else {
         Err(CompileError::InvalidToken{
             expected: Token::NAME("".to_string()),
