@@ -61,6 +61,7 @@ pub enum Token {
     SUB,
     MUL,
     DIV,
+    REM,
     LP,
     RP,
     LB,
@@ -69,7 +70,20 @@ pub enum Token {
     COLON,
     SEMICOLON,
     EQUALS,
+    EQUALTO,
+    NEQUALTO,
+    LT,
+    GT,
+    LE,
+    GE,
+    AND,
+    OR,
+    XOR,
+    NOT,
 }
+// @TODO: Make life better stuff
+// += -= ...
+// :=
 
 #[derive(PartialEq, Debug)]
 pub enum Expression {
@@ -79,6 +93,10 @@ pub enum Expression {
     U64(u64),
     F32(f32),
     F64(f64),
+    Unary {
+        op: Token,
+        arg: Box<Expression>,
+    },
     Binary {
         op: Token,
         right: Box<Expression>,

@@ -78,10 +78,11 @@ fn get_next_token(src: &mut Peekable<Chars>) -> Result<Token, CompileError> {
                         }
                     }
                 },
-                '*'  => { src.next(); Ok(Token::MUL) },
-                '/'  => { src.next(); Ok(Token::DIV) },
                 '+'  => { src.next(); Ok(Token::ADD) },
                 '-'  => { src.next(); Ok(Token::SUB) },
+                '*'  => { src.next(); Ok(Token::MUL) },
+                '/'  => { src.next(); Ok(Token::DIV) },
+                '%'  => { src.next(); Ok(Token::REM) },
                 '('  => { src.next(); Ok(Token::LP) },
                 ')'  => { src.next(); Ok(Token::RP) },
                 '{'  => { src.next(); Ok(Token::LB) },
@@ -89,7 +90,54 @@ fn get_next_token(src: &mut Peekable<Chars>) -> Result<Token, CompileError> {
                 ','  => { src.next(); Ok(Token::COMMA) },
                 ':'  => { src.next(); Ok(Token::COLON) },
                 ';'  => { src.next(); Ok(Token::SEMICOLON) },
-                '='  => { src.next(); Ok(Token::EQUALS) },
+                '='  => {
+                    src.next();
+                    if let Some(c) = src.peek().cloned() {
+                        match c {
+                            '=' => { src.next(); Ok(Token::EQUALTO) },
+                            _ => Ok(Token::EQUALS)
+                        }
+                    } else {
+                        Ok(Token::EQUALS)
+                    }
+                },
+                '!'  => {
+                    src.next();
+                    if let Some(c) = src.peek().cloned() {
+                        match c {
+                            '=' => { src.next(); Ok(Token::NEQUALTO) },
+                            _ => Ok(Token::NOT)
+                        }
+                    } else {
+                        Ok(Token::NOT)
+                    }
+                },
+                // @TODO: ==, !=, <=, >=
+                '<'  => {
+                    src.next();
+                    if let Some(c) = src.peek().cloned() {
+                        match c {
+                            '=' => { src.next(); Ok(Token::LE) },
+                            _ => Ok(Token::LT)
+                        }
+                    } else {
+                        Ok(Token::LT)
+                    }
+                },
+                '>'  => {
+                    src.next();
+                    if let Some(c) = src.peek().cloned() {
+                        match c {
+                            '=' => { src.next(); Ok(Token::GE) },
+                            _ => Ok(Token::GT)
+                        }
+                    } else {
+                        Ok(Token::GT)
+                    }
+                },
+                '&' => { src.next(); Ok(Token::AND) },
+                '|' => { src.next(); Ok(Token::OR) },
+                '^' => { src.next(); Ok(Token::XOR) },
                 '\0' => { src.next(); Ok(Token::EOF) },
                 _ => Err(CompileError::InvalidTokenCharacter {c})
             }
@@ -187,7 +235,7 @@ mod tests {
 
     #[test]
     fn test_simple_lex() {
-        let src: &'static str = "abZc \n def 123 123.45 99.9e12 + - / * = 123 wuoah";
+        let src: &'static str = "abZc \n def 123 123.45 99.9e12 + - / * = 123 == wuoah <= = > >= & | ^ ! !=";
         let mut l = Lexer::new(src).unwrap();
 
         let mut assert_token = |token| {
@@ -206,7 +254,17 @@ mod tests {
         assert_token(Token::MUL);
         assert_token(Token::EQUALS);
         assert_token(Token::INT(123));
+        assert_token(Token::EQUALTO);
         assert_token(Token::NAME("wuoah".to_string()));
+        assert_token(Token::LE);
+        assert_token(Token::EQUALS);
+        assert_token(Token::GT);
+        assert_token(Token::GE);
+        assert_token(Token::AND);
+        assert_token(Token::OR);
+        assert_token(Token::XOR);
+        assert_token(Token::NOT);
+        assert_token(Token::NEQUALTO);
         assert_token(Token::EOF);
     }
 }

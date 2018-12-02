@@ -4,6 +4,16 @@ use super::lex::*;
 fn parse_expr2(mut lexer: &mut Lexer) -> Result<Expression, CompileError> {
     // @TODO: Maybe just always use patterns instead of those helpers.
     match lexer.token.clone() {
+        Token::NOT => {
+            lexer.next_token()?;
+            let arg = parse_expr2(&mut lexer)?;
+            Ok(Expression::Unary{op: Token::NOT, arg: Box::new(arg)})
+        },
+        Token::SUB => {
+            lexer.next_token()?;
+            let arg = parse_expr2(&mut lexer)?;
+            Ok(Expression::Unary{op: Token::SUB, arg: Box::new(arg)})
+        },
         Token::INT(i) => {
             lexer.next_token()?;
             Ok(Expression::I32(i as i32))
@@ -42,7 +52,7 @@ fn parse_expr2(mut lexer: &mut Lexer) -> Result<Expression, CompileError> {
 
 fn parse_expr1(mut lexer: &mut Lexer) -> Result<Expression, CompileError> {
     let mut result = parse_expr2(&mut lexer)?;
-    while lexer.is_token(Token::MUL) || lexer.is_token(Token::DIV) {
+    while lexer.is_token(Token::MUL) || lexer.is_token(Token::DIV) || lexer.is_token(Token::REM) || lexer.is_token(Token::AND) {
         let op = lexer.token.clone();
         lexer.next_token()?;
         let right = parse_expr2(&mut lexer)?;
@@ -53,7 +63,7 @@ fn parse_expr1(mut lexer: &mut Lexer) -> Result<Expression, CompileError> {
 
 fn parse_expr(mut lexer: &mut Lexer) -> Result<Expression, CompileError> {
     let mut result = parse_expr1(&mut lexer)?;
-    while lexer.is_token(Token::ADD) || lexer.is_token(Token::SUB) {
+    while lexer.is_token(Token::ADD) || lexer.is_token(Token::SUB) || lexer.is_token(Token::XOR) || lexer.is_token(Token::OR) {
         let op = lexer.token.clone();
         lexer.next_token()?;
         let right = parse_expr1(&mut lexer)?;
@@ -225,3 +235,16 @@ mod tests {
         println!("{:#?}", module);
     }
 }
+
+// @TODO: Parse binary and unary expressions next.
+// After that we're just about done with our inital operators for expressions and we can move on to builtin functions.
+// then finna add 2 more functin types.
+
+
+//fn main()
+
+//pub
+//fn main()
+
+//inline
+//fn main()
