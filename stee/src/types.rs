@@ -46,6 +46,11 @@ pub enum CompileError {
         func: String,
         arg_types: Vec<TypeSpec>
     },
+    #[fail(display = "Type mismatch expected {:?} got {:?}", expected, got)]
+    TypeMismatch{
+        expected: TypeSpec,
+        got: TypeSpec
+    },
     #[fail(display = "Not implemented yet.")]
     NotImplemented
 }

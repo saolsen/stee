@@ -53,7 +53,7 @@ enum WasmOperator {
     select = 0x1b,
 
     GetLocal = 0x20,
-    set_local = 0x21,
+    SetLocal = 0x21,
     tee_local = 0x22,
     get_global = 0x23,
     set_global = 0x24,
@@ -482,7 +482,7 @@ fn emit_exp(fns: &Vec<&Func>, vars: &Vec<Var>, mut buf: &mut ByteBuffer, exp: &E
             let argument = emit_exp(fns, vars, buf, arg)?;
             match (op, argument) {
                 (Token::NOT, TypeSpec::I32) => { buf.write_u8(WasmOperator::I32Eqz as u8); return Ok(TypeSpec::I32) },
-                (Token::NOT, TypeSpec::I64) => { buf.write_u8(WasmOperator::I64Eqz as u8); return Ok(TypeSpec::I64) },
+                (Token::NOT, TypeSpec::I64) => { buf.write_u8(WasmOperator::I64Eqz as u8); return Ok(TypeSpec::I32) },
                 (Token::SUB, TypeSpec::I32) => {
                     buf.write_u8(WasmOperator::I32Const as u8);
                     write_leb128(0, &mut buf);
@@ -653,28 +653,32 @@ fn emit_exp(fns: &Vec<&Func>, vars: &Vec<Var>, mut buf: &mut ByteBuffer, exp: &E
     }
 }
 
-
-
 // Declarations have to be done up front so won't hit this?
-fn emit_statement(fns: &Vec<&Func>, vars: &Vec<Var>, mut buf: &mut ByteBuffer, statement: &Statement) {
+fn emit_statement(fns: &Vec<&Func>, vars: &Vec<Var>, mut buf: &mut ByteBuffer, statement: &Statement) -> Result<(), CompileError> {
     match statement {
         Statement::ASSIGN {name, expression} => {
             // @TODO: There's like tee local and stuff, since I'm doing 0 optimization so far whatev.
-            emit_exp(fns, vars, &mut buf, expression);
+            let exp_type = emit_exp(fns, vars, &mut buf, expression)?;
             // set local
             let index = vars.iter().position(|v| &v.name == name).unwrap(); // @TODO: Type check before here lol
-            buf.write_u8(0x21); // set local
-            write_leb128(index as u64, &mut buf);
+            if vars[index].typespec == exp_type {
+                buf.write_u8(WasmOperator::SetLocal as u8);
+                write_leb128(index as u64, &mut buf);
+                Ok(())
+            } else {
+                Err(CompileError::TypeMismatch{expected: vars[index].typespec, got: exp_type})
+            }
         },
         Statement::RETURN(expression) => {
-            emit_exp(fns, vars, &mut buf, expression);
+            emit_exp(fns, vars, &mut buf, expression)?;
             buf.write_u8(0x0f); // return
+            Ok(())
         },
-        _ => {}// @TODO
+        _ => Ok(())// @TODO
     }
 }
 
-pub fn emit_module(module: Module) -> ByteBuffer {
+pub fn emit_module(module: Module) -> Result<ByteBuffer, CompileError> {
     let mut funcs = vec![];
     for decl in &module.declarations {
         if let Declaration::FUNC {func} = decl {
@@ -685,28 +689,28 @@ pub fn emit_module(module: Module) -> ByteBuffer {
     let mut type_section = new_buffer();
     write_leb128(funcs.len() as u64, &mut type_section);
     for func in &funcs {
-        type_section.write_u8(func_type);
+        type_section.write_u8(WasmType::Func as u8);
         write_leb128(func.params.len() as u64, &mut type_section);
         let param_types = func.params.iter().map(|p| p.var.typespec).collect::<Vec<TypeSpec>>();
         for t in param_types {
             match t {
-                TypeSpec::I32 => type_section.write_u8(i32_type),
-                TypeSpec::U32 => type_section.write_u8(i32_type),
-                TypeSpec::I64 => type_section.write_u8(i64_type),
-                TypeSpec::U64 => type_section.write_u8(i64_type),
-                TypeSpec::F32 => type_section.write_u8(f32_type),
-                TypeSpec::F64 => type_section.write_u8(f64_type),
+                TypeSpec::I32 => type_section.write_u8(WasmType::I32 as u8),
+                TypeSpec::U32 => type_section.write_u8(WasmType::I32 as u8),
+                TypeSpec::I64 => type_section.write_u8(WasmType::I64 as u8),
+                TypeSpec::U64 => type_section.write_u8(WasmType::I64 as u8),
+                TypeSpec::F32 => type_section.write_u8(WasmType::F32 as u8),
+                TypeSpec::F64 => type_section.write_u8(WasmType::F64 as u8),
                 _ => () // @TODO: Throw  error on null
             }
         }
         match func.return_type {
             TypeSpec::NULL => { write_leb128(0, &mut type_section); }
-            TypeSpec::I32 => { write_leb128(1, &mut type_section); type_section.write_u8(i32_type) },
-            TypeSpec::U32 => { write_leb128(1, &mut type_section); type_section.write_u8(i32_type) },
-            TypeSpec::I64 => { write_leb128(1, &mut type_section); type_section.write_u8(i64_type) },
-            TypeSpec::U64 => { write_leb128(1, &mut type_section); type_section.write_u8(i64_type) },
-            TypeSpec::F32 => { write_leb128(1, &mut type_section); type_section.write_u8(f32_type) },
-            TypeSpec::F64 => { write_leb128(1, &mut type_section); type_section.write_u8(f64_type) }
+            TypeSpec::I32 => { write_leb128(1, &mut type_section); type_section.write_u8(WasmType::I32 as u8) },
+            TypeSpec::U32 => { write_leb128(1, &mut type_section); type_section.write_u8(WasmType::I32 as u8) },
+            TypeSpec::I64 => { write_leb128(1, &mut type_section); type_section.write_u8(WasmType::I64 as u8) },
+            TypeSpec::U64 => { write_leb128(1, &mut type_section); type_section.write_u8(WasmType::I64 as u8) },
+            TypeSpec::F32 => { write_leb128(1, &mut type_section); type_section.write_u8(WasmType::F32 as u8) },
+            TypeSpec::F64 => { write_leb128(1, &mut type_section); type_section.write_u8(WasmType::F64 as u8) }
         }
     }
 
@@ -722,7 +726,6 @@ pub fn emit_module(module: Module) -> ByteBuffer {
         //println!("DEBUG: {:?} {:?} {:?}", name, name.len() as u32, name.as_bytes());
         write_leb128(func.name.len() as u64, &mut export_section);
         export_section.write_bytes(func.name.as_bytes());
-        let function_export_kind = 0;
         export_section.write_u8(0); // Function Type
         write_leb128(i as u64, &mut export_section); // which function
     }
@@ -730,10 +733,6 @@ pub fn emit_module(module: Module) -> ByteBuffer {
     let mut code_section = new_buffer();
     write_leb128(funcs.len() as u64, &mut code_section);
 
-    //let funct_names = functs.iter().map(|f| f.0.clone()).collect::<Vec<String>>();
-
-    /* for decl in &module.declarations {
-            if let Declaration::FUNC {name, params, return_type, block} = decl { */
     for func in &funcs {
         // @TODO: Get index for all the variable names (and also function calls)
         // @TODO: should be able to have this be all refs? maybe?
@@ -757,12 +756,12 @@ pub fn emit_module(module: Module) -> ByteBuffer {
             if let Statement::LOCAL { var } = stmt {
                 write_leb128(1, &mut func_body);
                 match var.typespec {
-                    TypeSpec::I32 => func_body.write_u8(0x7f),
-                    TypeSpec::U32 => func_body.write_u8(0x7f),
-                    TypeSpec::I64 => func_body.write_u8(0x7e),
-                    TypeSpec::U64 => func_body.write_u8(0x7e),
-                    TypeSpec::F32 => func_body.write_u8(0x7d),
-                    TypeSpec::F64 => func_body.write_u8(0x7c),
+                    TypeSpec::I32 => func_body.write_u8(WasmType::I32 as u8),
+                    TypeSpec::U32 => func_body.write_u8(WasmType::I32 as u8),
+                    TypeSpec::I64 => func_body.write_u8(WasmType::I64 as u8),
+                    TypeSpec::U64 => func_body.write_u8(WasmType::I64 as u8),
+                    TypeSpec::F32 => func_body.write_u8(WasmType::F32 as u8),
+                    TypeSpec::F64 => func_body.write_u8(WasmType::F64 as u8),
                     _ => () // @TODO: Throw  error on null
                 }
             }
@@ -770,11 +769,11 @@ pub fn emit_module(module: Module) -> ByteBuffer {
 
         // emit the code
         for stmt in &func.block {
-            emit_statement(&funcs, &vars, &mut func_body, &stmt);
+            emit_statement(&funcs, &vars, &mut func_body, &stmt)?;
         }
 
         // end
-        func_body.write_u8(0x0B); // end function
+        func_body.write_u8(0x0B); // end function // @TODO: End operator
         write_leb128(func_body.len() as u64, &mut code_section);
         code_section.write_bytes(&func_body.to_bytes());
     
@@ -810,7 +809,7 @@ pub fn emit_module(module: Module) -> ByteBuffer {
     write_leb128(code_section.len() as u64, &mut buffer);
     buffer.write_bytes(&code_section.to_bytes());
 
-    buffer
+    Ok(buffer)
 }
 
 #[cfg(test)]

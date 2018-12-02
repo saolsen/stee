@@ -19,7 +19,7 @@ pub fn compile(src: String) -> Result<Vec<u8>, String> {
     let mut l = Lexer::new(&src).map_err(string_err)?;
     let module = parse_module(&mut l).map_err(string_err)?;
     println!("{:?}", module);
-    let wasm = emit_module(module);
+    let wasm = emit_module(module).map_err(string_err)?;
     Ok(wasm.to_bytes())
 }
 
