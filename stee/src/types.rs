@@ -166,6 +166,24 @@ pub enum Statement {
         name: String,
         expression: Expression,
     },
+    IF {
+        condition: Expression,
+        then_block: Vec<Statement>,
+        else_block: Vec<Statement>,
+    },
+    WHILE {
+        condition: Expression,
+        block: Vec<Statement>,
+    },
+    /* FOR {
+        
+    },
+    WHILE {
+
+    },
+    SWITCH {
+
+    } */
     RETURN(Expression),
 }
 
@@ -173,3 +191,4 @@ pub enum Statement {
 pub struct Module {
     pub declarations: Vec<Declaration>
 }
+

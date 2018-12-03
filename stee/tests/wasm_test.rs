@@ -26,16 +26,53 @@ fn test_lots_of_stuff() {
             var y: i64;
             var x: i32;
             x = !y;
-            //y = y & y | y ^ !y + y / y * y - y + -y;
-            //var x: i32;
-            //x = x & x | x ^ !x;
-            //return 10 / 11 * 12 + 12 - 14 % x;
+            if x & x | x ^ !x {
+                return 10 / 11 * 12 + 12 - 14 % x;
+            }
             return 5;
-
         }"#,
         "main",
         &[],
-        RuntimeValue::I32(5)
+        RuntimeValue::I32(12)
+    );
+}
+
+#[test]
+fn test_if_statement() {
+    test_program(r#"
+        // comments work!
+        func main() : i32 { 
+            var x: i32;
+            x = 5;
+            var y: i32;
+            if x < 10 {
+                y = 1;
+            } else {
+                y = 2;
+            }
+            return y;
+        }"#,
+        "main",
+        &[],
+        RuntimeValue::I32(1)
+    );
+}
+
+#[test]
+fn test_loop_statement() {
+    test_program(r#"
+        // comments work!
+        func main() : i32 { 
+            var x: i32;
+            x = 5;
+            while x != 0 {
+                x = x - 1;
+            }
+            return x;
+        }"#,
+        "main",
+        &[],
+        RuntimeValue::I32(0)
     );
 }
 

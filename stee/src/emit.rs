@@ -1,9 +1,3 @@
-
-
-
-
-
-
 use super::types::*;
 use bytebuffer::Endian::LittleEndian; // @TODO: It should be pretty easy to drop this.
 use bytebuffer::ByteBuffer; // @TODO: Drop this.
@@ -436,16 +430,8 @@ enum WasmOperator {
 // 1 crate is the pure compiler.
 // the wasm node project is seperate.
 
-const magic_number: u32 = 0x6d736100;
-const version: u32 = 0x1;
-
-const i32_type: u8 = 0x7f;
-const i64_type: u8 = 0x7e;
-const f32_type: u8 = 0x7d;
-const f64_type: u8 = 0x7c;
-const anyfunc_type: u8 = 0x70;
-const func_type: u8 = 0x60;
-const empty_block_type: u8 = 0x40;
+const MAGIC_NUMBER: u32 = 0x6d736100;
+const VERSION: u32 = 0x1;
 
 fn write_leb128(mut val: u64, mut buf: &mut ByteBuffer) {
     const continuation_bit: u8 = 1 << 7;
@@ -467,8 +453,6 @@ fn new_buffer() -> ByteBuffer {
     buffer.set_endian(LittleEndian);
     buffer
 }
-
-// @TODO: I need to add unary operators like !, ! is eqzero
 
 fn emit_exp(fns: &Vec<&Func>, vars: &Vec<Var>, mut buf: &mut ByteBuffer, exp: &Expression) -> Result<TypeSpec, CompileError> {
     match exp {
@@ -633,8 +617,7 @@ fn emit_exp(fns: &Vec<&Func>, vars: &Vec<Var>, mut buf: &mut ByteBuffer, exp: &E
                 // @TODO: Figure out how to match vectors here for the builtin functions!
                 // test fake builtin function
                 // @TODO: External functions that are passed in.
-                ("add", [TypeSpec::I32, TypeSpec::I32]) => { buf.write_u8(WasmOperator::I32Add as u8); return Ok(TypeSpec::I32)
-                },
+                ("add", [TypeSpec::I32, TypeSpec::I32]) => { buf.write_u8(WasmOperator::I32Add as u8); return Ok(TypeSpec::I32) },
                 _ => {
                     // Check for user defined functions.
                     if let Some(index) = fns.iter().position(|f| &f.name == func) {
@@ -668,6 +651,47 @@ fn emit_statement(fns: &Vec<&Func>, vars: &Vec<Var>, mut buf: &mut ByteBuffer, s
             } else {
                 Err(CompileError::TypeMismatch{expected: vars[index].typespec, got: exp_type})
             }
+        },
+        Statement::IF { condition, then_block, else_block } => {
+            let exp_type = emit_exp(fns, vars, &mut buf, condition)?;
+            if exp_type != TypeSpec::I32 {
+                return Err(CompileError::TypeMismatch{expected: TypeSpec::I32, got: exp_type})
+            }
+            buf.write_u8(WasmOperator::If as u8);
+            buf.write_u8(WasmType::EmptyBlock as u8);
+            for stmt in then_block {
+                emit_statement(&fns, &vars, &mut buf, &stmt)?;
+            }
+            if else_block.len() > 0 {
+                buf.write_u8(WasmOperator::Else as u8);
+                for stmt in else_block {
+                    emit_statement(&fns, &vars, &mut buf, &stmt)?;
+                }
+            }
+            buf.write_u8(WasmOperator::End as u8);
+            Ok(())
+        },
+        Statement::WHILE { condition, block } => {
+            buf.write_u8(WasmOperator::Block as u8);
+            buf.write_u8(WasmType::EmptyBlock as u8);
+            
+            buf.write_u8(WasmOperator::Loop as u8);
+            buf.write_u8(WasmType::EmptyBlock as u8);
+            let exp_type = emit_exp(fns, vars, &mut buf, condition)?;
+            if exp_type != TypeSpec::I32 {
+                return Err(CompileError::TypeMismatch{expected: TypeSpec::I32, got: exp_type})
+            }
+            buf.write_u8(WasmOperator::I32Eqz as u8);
+            buf.write_u8(WasmOperator::BrIf as u8);
+            write_leb128(1, &mut buf);
+            for stmt in block {
+                emit_statement(&fns, &vars, &mut buf, &stmt)?;
+            }
+            buf.write_u8(WasmOperator::Br as u8);
+            write_leb128(0, &mut buf);
+            buf.write_u8(WasmOperator::End as u8);
+            buf.write_u8(WasmOperator::End as u8);
+            Ok(())
         },
         Statement::RETURN(expression) => {
             emit_exp(fns, vars, &mut buf, expression)?;
@@ -773,7 +797,7 @@ pub fn emit_module(module: Module) -> Result<ByteBuffer, CompileError> {
         }
 
         // end
-        func_body.write_u8(0x0B); // end function // @TODO: End operator
+        func_body.write_u8(WasmOperator::End as u8);
         write_leb128(func_body.len() as u64, &mut code_section);
         code_section.write_bytes(&func_body.to_bytes());
     
@@ -786,8 +810,8 @@ pub fn emit_module(module: Module) -> Result<ByteBuffer, CompileError> {
     // Makes debugging way easier.
 
     let mut buffer = new_buffer();
-    buffer.write_u32(magic_number);
-    buffer.write_u32(version);
+    buffer.write_u32(MAGIC_NUMBER);
+    buffer.write_u32(VERSION);
 
     let type_section_header = 1;
     buffer.write_u8(type_section_header);

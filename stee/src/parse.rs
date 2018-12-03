@@ -1,17 +1,17 @@
 use super::types::*;
 use super::lex::*; 
 
-fn parse_expr2(mut lexer: &mut Lexer) -> Result<Expression, CompileError> {
+fn parse_expr3(mut lexer: &mut Lexer) -> Result<Expression, CompileError> {
     // @TODO: Maybe just always use patterns instead of those helpers.
     match lexer.token.clone() {
         Token::NOT => {
             lexer.next_token()?;
-            let arg = parse_expr2(&mut lexer)?;
+            let arg = parse_expr3(&mut lexer)?;
             Ok(Expression::Unary{op: Token::NOT, arg: Box::new(arg)})
         },
         Token::SUB => {
             lexer.next_token()?;
-            let arg = parse_expr2(&mut lexer)?;
+            let arg = parse_expr3(&mut lexer)?;
             Ok(Expression::Unary{op: Token::SUB, arg: Box::new(arg)})
         },
         Token::INT(i) => {
@@ -50,9 +50,21 @@ fn parse_expr2(mut lexer: &mut Lexer) -> Result<Expression, CompileError> {
     }
 }
 
+fn parse_expr2(mut lexer: &mut Lexer) -> Result<Expression, CompileError> {
+    let mut result = parse_expr3(&mut lexer)?;
+    while lexer.is_token(Token::MUL) || lexer.is_token(Token::DIV) || lexer.is_token(Token::REM) || lexer.is_token(Token::AND) {
+        let op = lexer.token.clone();
+        lexer.next_token()?;
+        let right = parse_expr3(&mut lexer)?;
+        result = Expression::Binary {op, left: Box::new(result), right: Box::new(right)};
+    }
+    Ok(result)
+}
+
 fn parse_expr1(mut lexer: &mut Lexer) -> Result<Expression, CompileError> {
     let mut result = parse_expr2(&mut lexer)?;
-    while lexer.is_token(Token::MUL) || lexer.is_token(Token::DIV) || lexer.is_token(Token::REM) || lexer.is_token(Token::AND) {
+    print!("result {:?}", result);
+    while lexer.is_token(Token::ADD) || lexer.is_token(Token::SUB) || lexer.is_token(Token::XOR) || lexer.is_token(Token::OR) {
         let op = lexer.token.clone();
         lexer.next_token()?;
         let right = parse_expr2(&mut lexer)?;
@@ -63,7 +75,8 @@ fn parse_expr1(mut lexer: &mut Lexer) -> Result<Expression, CompileError> {
 
 fn parse_expr(mut lexer: &mut Lexer) -> Result<Expression, CompileError> {
     let mut result = parse_expr1(&mut lexer)?;
-    while lexer.is_token(Token::ADD) || lexer.is_token(Token::SUB) || lexer.is_token(Token::XOR) || lexer.is_token(Token::OR) {
+    print!("result {:?}", result);
+    while lexer.is_token(Token::EQUALTO) || lexer.is_token(Token::NEQUALTO) || lexer.is_token(Token::LT) || lexer.is_token(Token::LE) || lexer.is_token(Token::GT) || lexer.is_token(Token::GE) {
         let op = lexer.token.clone();
         lexer.next_token()?;
         let right = parse_expr1(&mut lexer)?;
@@ -131,6 +144,24 @@ fn parse_statement(mut lexer: &mut Lexer) -> Result<Statement, CompileError> {
                     typespec
                 }
             })
+        },
+        Token::NAME(ref n) if n == "if" => {
+            lexer.next_token()?;
+            let condition = parse_expr(&mut lexer)?;
+            let then_block = parse_statement_block(&mut lexer)?;
+            let else_block =
+                if lexer.match_name("else")? {
+                    parse_statement_block(&mut lexer)?
+                } else {
+                    vec![]
+                };
+            Ok(Statement::IF {condition, then_block, else_block})
+        },
+        Token::NAME(ref n) if n == "while" => {
+            lexer.next_token()?;
+            let condition = parse_expr(&mut lexer)?;
+            let block = parse_statement_block(&mut lexer)?;
+            Ok(Statement::WHILE {condition, block})
         },
         Token::NAME(_) => {
             // assignment
