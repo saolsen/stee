@@ -125,7 +125,6 @@ fn get_next_token(src: &mut Peekable<Chars>) -> Result<Token, CompileError> {
                             Ok(Token::NOT)
                         }
                     },
-                    // @TODO: ==, !=, <=, >=
                     '<'  => {
                         src.next();
                         if let Some(c) = src.peek().cloned() {
@@ -148,6 +147,7 @@ fn get_next_token(src: &mut Peekable<Chars>) -> Result<Token, CompileError> {
                             Ok(Token::GT)
                         }
                     },
+                    // @Q: Should I do bool only versions || and &&
                     '&' => { src.next(); Ok(Token::AND) },
                     '|' => { src.next(); Ok(Token::OR) },
                     '^' => { src.next(); Ok(Token::XOR) },
@@ -236,13 +236,6 @@ impl <'a> Lexer<'a> {
         }
     }
 }
-
-// @TODO: Figure out which of these are even used and which are just pattern matched.
-// @TODO: Maybe keywords should be their own token type.
-// @TODO: See if we can use strings better instead of all the copying.
-
-// @TODO: Make operators their own thing and not just tokens.
-// Many operators aren't tokens.
 
 #[cfg(test)]
 mod tests {

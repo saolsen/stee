@@ -55,7 +55,6 @@ pub enum CompileError {
     NotImplemented
 }
 
-// @TODO: Tokens for keywords so I don't have to name-compare them and can just match them directly.
 #[derive(PartialEq, Debug, Clone)]
 pub enum Token {
     EOF,
@@ -150,15 +149,24 @@ pub enum Declaration {
     FUNC {
         func: Func
     },
-    GLOBAL { // this could be a global or a const.
+    GLOBAL {
         var: Var
     },
-    // types like structs and enums?
+    EXTERN {
+        name: String,
+        params: Vec<FuncParam>,
+        return_type: TypeSpec,
+    }
+    // @TODO: Const
+    // @TODO: Type definitions like structs and enums.
 }
 
 #[derive(PartialEq, Debug)]
 pub enum Statement {
     NULL,
+    BLOCK {
+        block: Vec<Statement>,
+    },
     LOCAL {
         var: Var
     },
@@ -194,3 +202,9 @@ pub enum Statement {
 pub struct Module {
     pub declarations: Vec<Declaration>
 }
+
+// globals
+// blocks as statements
+// pub functions for export
+// import function declarations
+// builtin functions

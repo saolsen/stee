@@ -1,5 +1,5 @@
 #[macro_use] extern crate failure;
-extern crate bytebuffer;
+extern crate byteorder;
 
 use self::types::*;
 use self::lex::*;
@@ -15,12 +15,15 @@ fn string_err(err: CompileError) -> String {
     format!("{:?}", err)
 }
 
+fn compile_module(src: String) -> Result<Vec<u8>, CompileError> {
+    let mut lex = Lexer::new(&src)?;
+    let module = parse_module(&mut lex)?;
+    let wasm = emit_module(module)?;
+    Ok(wasm)
+}
+
 pub fn compile(src: String) -> Result<Vec<u8>, String> {
-    let mut l = Lexer::new(&src).map_err(string_err)?;
-    let module = parse_module(&mut l).map_err(string_err)?;
-    println!("{:?}", module);
-    let wasm = emit_module(module).map_err(string_err)?;
-    Ok(wasm.to_bytes())
+    Ok(compile_module(src).map_err(string_err)?)
 }
 
 // od -t d1 it.wasm

@@ -275,6 +275,8 @@ fn parse_func(mut lexer: &mut Lexer) -> Result<Declaration, CompileError> {
 
 fn parse_declaration(mut lexer: &mut Lexer) -> Result<Declaration, CompileError> {
     //@TODO: More declarations than just funcs later.
+    //@TODO: Global variables.
+    //@TODO: Extern func declarations.
     if lexer.is_name("func") {
         parse_func(&mut lexer)
     } else {
@@ -322,16 +324,3 @@ mod tests {
         println!("{:#?}", module);
     }
 }
-
-// @TODO: Parse binary and unary expressions next.
-// After that we're just about done with our inital operators for expressions and we can move on to builtin functions.
-// then finna add 2 more functin types.
-
-
-//fn main()
-
-//pub
-//fn main()
-
-//inline
-//fn main()
