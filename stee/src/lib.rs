@@ -25,8 +25,6 @@ pub fn compile(src: String) -> Result<Vec<u8>, String> {
 
 // od -t d1 it.wasm
 
-
-
 // Add the other primitive types.
 // Do typechecking and pick operators.
 // Add all the rest of the operators based on types.
@@ -39,9 +37,6 @@ pub fn compile(src: String) -> Result<Vec<u8>, String> {
 // then for v2 I'll play with memory management, references, structs and arrays
 
 // If I actually do this language I will be so happy!
-
-
-
 
 // How can I make working on this not suck?
 // I should make a feature for making it a webassembly library.

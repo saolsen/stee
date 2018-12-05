@@ -2,20 +2,6 @@ use super::types::*;
 use bytebuffer::Endian::LittleEndian; // @TODO: It should be pretty easy to drop this.
 use bytebuffer::ByteBuffer; // @TODO: Drop this.
 
-// how do I do type checking?
-// so every expression would have a type? Is that right?
-// and I'd need some type checking code that figures it out?
-
-
-// So I need all the things I can call from wasm.
-// I can call any of these with a function call.
-
-// Control flow operators are done with language constructs.
-// call and call_indirect are what is used for user defined functions and imports.
-// parametric, drop and select I'm not sure what those are for.
-// variable accesses are used for locals and globals, I should be able to tell which I'm using
-// by their name.
-// memory operators
 enum WasmType {
     I32 = 0x7f,
     I64 = 0x7e,
@@ -407,39 +393,16 @@ enum WasmOperator {
 //     f64_reinterpret_i64 = 0xbf,
 // }
 
-// These all probably are gonna just be typed functions too? I think?
-// Yeah, better do. The only other thing is that there are signed and unsigned versions
-// of all of these ops.
-// I have to make a decision about if I wanna have unsigned versions of stuff.
-// I think, that I shall...
-
-// yeah, these will be the types to start
-// i32 u32 i64 u64 f32 f64
-// then when I do structs and shit I'll figure it out.
-// what about casting, how many ways are there to do it?
-
-// extend vs trunk vs wrap?
-
-
-// dang, I wish I didn't wait to start this till the whole day was over!
-// gonna work this out, do all this stuff first, then go back and do syntax stuff for the loops.
-// then do global vs local and shit.
-// I'm starting to see the path forward! This is such a doable project!
-
-// I also want to break out the project, might do that today.
-// 1 crate is the pure compiler.
-// the wasm node project is seperate.
-
 const MAGIC_NUMBER: u32 = 0x6d736100;
 const VERSION: u32 = 0x1;
 
 fn write_leb128(mut val: u64, mut buf: &mut ByteBuffer) {
-    const continuation_bit: u8 = 1 << 7;
+    const CONTINUATION_BIT: u8 = 1 << 7;
     loop {
-        let mut byte: u8 = (val & (std::u8::MAX as u64)) as u8 & !continuation_bit;
+        let mut byte: u8 = (val & (std::u8::MAX as u64)) as u8 & !CONTINUATION_BIT;
         val >>= 7;
         if val != 0 {
-            byte |= continuation_bit;
+            byte |= CONTINUATION_BIT;
         }
         buf.write_u8(byte);
         if val == 0 {
@@ -498,19 +461,6 @@ fn emit_exp(fns: &Vec<&Func>, vars: &Vec<Var>, mut buf: &mut ByteBuffer, exp: &E
             let lhs = emit_exp(fns, vars, buf, left)?;
             let rhs = emit_exp(fns, vars, buf, right)?;
             match (op, lhs, rhs) {
-                // @TODO: Add all the operators!
-                // eq_z is for equal to zero, dunno if I want that somehow.
-                // @TODO: Add operators
-                // % REM
-                // == EqualTo
-                // != NEqualTo
-                // < LT
-                // > GT
-                // <= LE
-                // >= GE
-                // && AND
-                // || OR
-                // ^ XOR
                 (Token::EQUALTO, TypeSpec::I32, TypeSpec::I32) => { buf.write_u8(WasmOperator::I32Eq as u8); return Ok(TypeSpec::I32) },
                 (Token::NEQUALTO, TypeSpec::I32, TypeSpec::I32) => { buf.write_u8(WasmOperator::I32Ne as u8); return Ok(TypeSpec::I32) },
                 (Token::EQUALTO, TypeSpec::U32, TypeSpec::U32) => { buf.write_u8(WasmOperator::I32Eq as u8); return Ok(TypeSpec::I32) },
@@ -585,7 +535,6 @@ fn emit_exp(fns: &Vec<&Func>, vars: &Vec<Var>, mut buf: &mut ByteBuffer, exp: &E
                 (Token::OR,  TypeSpec::U64, TypeSpec::U64) => { buf.write_u8(WasmOperator::I64Or as u8);   return Ok(TypeSpec::U64) },
                 (Token::XOR, TypeSpec::U64, TypeSpec::U64) => { buf.write_u8(WasmOperator::I64Xor as u8);  return Ok(TypeSpec::U64) },
 
-                // @TODO: Negation is a unary operator, add support for unary operators.
                 (Token::ADD, TypeSpec::F32, TypeSpec::F32) => { buf.write_u8(WasmOperator::F32Add as u8);  return Ok(TypeSpec::F32) },
                 (Token::SUB, TypeSpec::F32, TypeSpec::F32) => { buf.write_u8(WasmOperator::F32Sub as u8);  return Ok(TypeSpec::F32) },
                 (Token::MUL, TypeSpec::F32, TypeSpec::F32) => { buf.write_u8(WasmOperator::F32Mul as u8);  return Ok(TypeSpec::F32) },
@@ -636,7 +585,6 @@ fn emit_exp(fns: &Vec<&Func>, vars: &Vec<Var>, mut buf: &mut ByteBuffer, exp: &E
     }
 }
 
-// Declarations have to be done up front so won't hit this?
 fn emit_statement(fns: &Vec<&Func>, vars: &Vec<Var>, mut buf: &mut ByteBuffer, statement: &Statement) -> Result<(), CompileError> {
     match statement {
         Statement::ASSIGN {name, expression} => {
@@ -893,11 +841,9 @@ pub fn emit_module(module: Module) -> Result<ByteBuffer, CompileError> {
     
     }
 
-    // @TODO: Data section is where we load the inital memory. Will be needed for the
-    // application stack and type info.
+    // @TODO: Data section is where we load the inital memory.
 
-    // @TODO: The name section can be used so all the vars have names when decoded.
-    // Makes debugging way easier.
+    // @TODO: The name section can be used so all the vars have names when decoded for debugging.
 
     let mut buffer = new_buffer();
     buffer.write_u32(MAGIC_NUMBER);
