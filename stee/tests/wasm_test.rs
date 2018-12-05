@@ -59,7 +59,25 @@ fn test_if_statement() {
 }
 
 #[test]
-fn test_loop_statement() {
+fn test_for_loop() {
+    test_program(r#"
+        // comments work!
+        func main() : i32 { 
+            var x: i32;
+            var y: i32;
+            for x = 5; x < 10; x = x + 1 {
+                y = y + 1;
+            }
+            return y;
+        }"#,
+        "main",
+        &[],
+        RuntimeValue::I32(5)
+    );
+}
+
+#[test]
+fn test_while_loop() {
     test_program(r#"
         // comments work!
         func main() : i32 { 
@@ -73,6 +91,30 @@ fn test_loop_statement() {
         "main",
         &[],
         RuntimeValue::I32(0)
+    );
+}
+
+#[test]
+fn test_switch() {
+    test_program(r#"
+        // comments work!
+        func main() : i32 { 
+            var x: i32;
+            var y: i32;
+            x = 5;
+            switch x {
+                case 2:
+                    y = 2;
+                case 4:
+                    y = 4
+                default:
+                    y = 1;
+            }
+            return y;
+        }"#,
+        "main",
+        &[],
+        RuntimeValue::I32(1)
     );
 }
 

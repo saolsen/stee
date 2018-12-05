@@ -693,6 +693,96 @@ fn emit_statement(fns: &Vec<&Func>, vars: &Vec<Var>, mut buf: &mut ByteBuffer, s
             buf.write_u8(WasmOperator::End as u8);
             Ok(())
         },
+        Statement::FOR { setup, condition, iter, block } => {
+            emit_statement(&fns, &vars, &mut buf, setup)?;
+            buf.write_u8(WasmOperator::Block as u8);
+            buf.write_u8(WasmType::EmptyBlock as u8);
+            buf.write_u8(WasmOperator::Loop as u8);
+            buf.write_u8(WasmType::EmptyBlock as u8);
+            let exp_type = emit_exp(fns, vars, &mut buf, condition)?;
+            if exp_type != TypeSpec::I32 {
+                return Err(CompileError::TypeMismatch{expected: TypeSpec::I32, got: exp_type})
+            }
+            buf.write_u8(WasmOperator::I32Eqz as u8);
+            buf.write_u8(WasmOperator::BrIf as u8);
+            write_leb128(1, &mut buf);
+            for stmt in block {
+                emit_statement(&fns, &vars, &mut buf, &stmt)?;
+            }
+            emit_statement(&fns, &vars, &mut buf, iter)?;
+            buf.write_u8(WasmOperator::Br as u8);
+            write_leb128(0, &mut buf);
+            buf.write_u8(WasmOperator::End as u8);
+            buf.write_u8(WasmOperator::End as u8);
+            Ok(())
+        },
+        Statement::SWITCH { index, values, blocks, default } => {
+            let mut min_index = std::i32::MAX;
+            let mut max_index = 0;
+            for v in values {
+                if *v < min_index {
+                    min_index = *v;
+                }
+                if *v > max_index {
+                    max_index = *v;
+                }
+            }
+            // Ok so gotta match up block indexes to case statements.
+            //emit blocks in blocks
+            // the case values for those are in values
+            // for 0 - max value
+            // build array of indexes, where default is index 0
+            // case 2 foo
+            // case 4 foooo
+            // default f
+            // br_Table 5 [f, f, 2, f, 4] f
+            // then I also have to match these up to the blocks.
+            let mut index_array = vec![0; (max_index+1) as usize];
+            // walk down to the default.
+            //let mut num_blocks = 0;
+
+            // outer block
+            buf.write_u8(WasmOperator::Block as u8);
+            buf.write_u8(WasmType::EmptyBlock as u8);
+
+            for i in (0..values.len()).rev() {
+                let val = values[i] as usize;
+                index_array[val] = i+1;
+                buf.write_u8(WasmOperator::Block as u8);
+                buf.write_u8(WasmType::EmptyBlock as u8);
+            }
+            
+            buf.write_u8(WasmOperator::Block as u8);
+            buf.write_u8(WasmType::EmptyBlock as u8);
+            let index_type = emit_exp(fns, vars, &mut buf, index)?;
+            if index_type != TypeSpec::I32 {
+                return Err(CompileError::TypeMismatch{expected: TypeSpec::I32, got: index_type})
+            }
+            buf.write_u8(WasmOperator::BrTable as u8);
+            write_leb128((max_index+1) as u64, &mut buf);
+            for v in index_array {
+                write_leb128(v as u64, &mut buf);
+            }
+            write_leb128(0, &mut buf); // default
+            buf.write_u8(WasmOperator::End as u8);
+
+            for stmt in default {
+                emit_statement(&fns, &vars, &mut buf, &stmt)?;
+            }
+            let mut break_level = values.len();
+            for i in (0..values.len()) {
+                buf.write_u8(WasmOperator::Br as u8);
+                write_leb128(break_level as u64, &mut buf);
+                break_level -= 1;
+                buf.write_u8(WasmOperator::End as u8);
+                for stmt in &blocks[i] {
+                   emit_statement(&fns, &vars, &mut buf, &stmt)?;
+                }
+            }
+
+            buf.write_u8(WasmOperator::End as u8);
+            Ok(())
+        }
         Statement::RETURN(expression) => {
             emit_exp(fns, vars, &mut buf, expression)?;
             buf.write_u8(0x0f); // return

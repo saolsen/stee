@@ -175,15 +175,18 @@ pub enum Statement {
         condition: Expression,
         block: Vec<Statement>,
     },
-    /* FOR {
-        
-    },
-    WHILE {
-
+    FOR {
+        setup: Box<Statement>,
+        condition: Expression,
+        iter: Box<Statement>,
+        block: Vec<Statement>,
     },
     SWITCH {
-
-    } */
+        index: Expression,
+        values: Vec<i32>,
+        blocks: Vec<Vec<Statement>>,
+        default: Vec<Statement>,
+    },
     RETURN(Expression),
 }
 
@@ -191,4 +194,3 @@ pub enum Statement {
 pub struct Module {
     pub declarations: Vec<Declaration>
 }
-

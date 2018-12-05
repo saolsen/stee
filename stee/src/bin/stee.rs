@@ -11,14 +11,17 @@ fn main() -> std::io::Result<()> {
        // comments work!
         func main() : i32 { 
             var x: i32;
+            var y: i32;
             x = 5;
-            loop {
-                if x == 0 {
-                    break;
-                }
-                x = x - 1;
+            switch x {
+                case 2:
+                    y = 2;
+                case 4:
+                    y = 4
+                default:
+                    y = 1;
             }
-            return x;
+            return y;
         }
     "#.to_string();
     let module = stee::compile(src).expect("compile error");
@@ -27,5 +30,4 @@ fn main() -> std::io::Result<()> {
     let mut w = BufWriter::new(file);
     w.write(&module)?;
     Ok(())
-    //println!("{:?}", module);
 }

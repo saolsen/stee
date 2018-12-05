@@ -163,6 +163,62 @@ fn parse_statement(mut lexer: &mut Lexer) -> Result<Statement, CompileError> {
             let block = parse_statement_block(&mut lexer)?;
             Ok(Statement::WHILE {condition, block})
         },
+        Token::NAME(ref n) if n == "for" => {
+            lexer.next_token()?;
+            let setup = parse_statement(&mut lexer)?;
+            lexer.expect_token(Token::SEMICOLON)?;
+            let condition = parse_expr(&mut lexer)?;
+            lexer.expect_token(Token::SEMICOLON)?;
+            let iter = parse_statement(&mut lexer)?;
+            let block = parse_statement_block(&mut lexer)?;
+            Ok(Statement::FOR {
+                setup: Box::new(setup),
+                condition,
+                iter: Box::new(iter),
+                block
+            })
+        },
+        Token::NAME(ref n) if n == "switch" => {
+            lexer.next_token()?;
+            let index = parse_expr(&mut lexer)?;
+            lexer.expect_token(Token::LB)?;
+            let mut values = vec![];
+            let mut blocks = vec![];
+            let mut default = vec![];
+            while !lexer.is_token(Token::RB) {
+                match lexer.token.clone() {
+                    Token::NAME(ref n) if n == "case" => {
+                        lexer.next_token()?;
+                        if let Token::INT(i) = lexer.token {
+                            lexer.next_token()?;
+                            lexer.expect_token(Token::COLON)?;
+                            let mut block = vec![];
+                            while !lexer.is_name("case") && !lexer.is_name("default") && !lexer.is_token(Token::RB) {
+                                block.push(parse_statement(&mut lexer)?);
+                                lexer.match_token(Token::SEMICOLON)?;
+                            }
+                            values.push(i as i32);
+                            blocks.push(block);
+                        } else {
+                            return Err(CompileError::TypeMismatch {expected: TypeSpec::I32, got: TypeSpec::NULL})// @TODO
+                        }
+                    },
+                    Token::NAME(ref n) if n == "default" => {
+                        lexer.next_token()?;
+                        lexer.expect_token(Token::COLON)?;
+                        let mut block = vec![];
+                        while !lexer.is_name("case") && !lexer.is_name("default") && !lexer.is_token(Token::RB) {
+                            block.push(parse_statement(&mut lexer)?);
+                            lexer.match_token(Token::SEMICOLON)?;
+                        }
+                        default = block;
+                    },
+                    _ => return Err(CompileError::InvalidStatementToken {token: lexer.token.clone() })// @TODO
+                }
+            }
+            lexer.expect_token(Token::RB)?;
+            Ok(Statement::SWITCH {index, values, blocks, default})
+        },
         Token::NAME(_) => {
             // assignment
             let var = lexer.expect_a_name()?;
