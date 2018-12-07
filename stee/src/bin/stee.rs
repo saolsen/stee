@@ -8,23 +8,19 @@ use std::io::BufWriter;
 
 fn main() -> std::io::Result<()> {
     let src = r#"
-       // comments work!
+        // comments work!
+        var x : i32;
         func main() : i32 { 
-            var x: i32;
-            var y: i32;
-            x = 5;
-            switch x {
-                case 2:
-                    y = 2;
-                case 4:
-                    y = 4
-                default:
-                    y = 1;
-            }
-            return y;
+            x = 10;
+            return x;
         }
     "#.to_string();
-    let module = stee::compile(src).expect("compile error");
+    let module = stee::compile(src);
+    if let Err(err)  = module {
+        println!("{:?}", err);
+        return Ok(());
+    }
+    let module = module.unwrap();
     println!("{:?}", module);
     let file = File::create("debug.wasm")?;
     let mut w = BufWriter::new(file);

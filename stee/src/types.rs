@@ -46,6 +46,10 @@ pub enum CompileError {
         func: String,
         arg_types: Vec<TypeSpec>
     },
+    #[fail(display = "Unknown Variable {:?}", name)]
+    UnknownVariable{
+        name: String,
+    },
     #[fail(display = "Type mismatch expected {:?} got {:?}", expected, got)]
     TypeMismatch{
         expected: TypeSpec,

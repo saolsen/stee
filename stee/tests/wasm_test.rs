@@ -16,8 +16,27 @@ fn test_program(src: &str, func: &str, args: &[RuntimeValue], result: RuntimeVal
     )
 }
 
-// Unit tests for all the language features.
-// @TODO: I really need comments!
+// Things to test.
+// Every language feature?
+// All the builtin functions?
+// All the possible errors?
+// Compilation benchmarks?
+
+#[test]
+fn test_globals() {
+    test_program(r#"
+        // comments work!
+        var x: i32;
+        func main() : i32 { 
+            x = x + 10;
+            return x;
+        }"#,
+        "main",
+        &[],
+        RuntimeValue::I32(10)
+    );
+}
+
 #[test]
 fn test_lots_of_stuff() {
     test_program(r#"

@@ -277,10 +277,24 @@ fn parse_declaration(mut lexer: &mut Lexer) -> Result<Declaration, CompileError>
     //@TODO: More declarations than just funcs later.
     //@TODO: Global variables.
     //@TODO: Extern func declarations.
-    if lexer.is_name("func") {
-        parse_func(&mut lexer)
-    } else {
-        Err(CompileError::InvalidDeclarationToken{token: lexer.token.clone()})
+    match lexer.token {
+        Token::NAME(ref n) if n == "var" => {
+            lexer.next_token()?;
+            let var = lexer.expect_a_name()?;
+            lexer.expect_token(Token::COLON)?;
+            let typespec = parse_typespec(&mut lexer)?;
+            lexer.expect_token(Token::SEMICOLON)?;
+            Ok(Declaration::GLOBAL {
+                var: Var {
+                    name: var,
+                    typespec
+                }
+            })
+        },
+        Token::NAME(ref n) if n == "func" => {
+            parse_func(&mut lexer)
+        },
+        _ => Err(CompileError::InvalidDeclarationToken{token: lexer.token.clone()})
     }
 }
 
