@@ -274,9 +274,6 @@ fn parse_func(kind: FuncKind, mut lexer: &mut Lexer) -> Result<Declaration, Comp
 }
 
 fn parse_declaration(mut lexer: &mut Lexer) -> Result<Declaration, CompileError> {
-    //@TODO: More declarations than just funcs later.
-    //@TODO: Global variables.
-    //@TODO: Extern func declarations.
     match lexer.token {
         Token::NAME(ref n) if n == "var" => {
             lexer.next_token()?;

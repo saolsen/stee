@@ -609,12 +609,8 @@ fn emit_exp(externs: &Vec<&Func>, fns: &Vec<&Func>, globals: &Vec<Var>, locals: 
             }
             // @TODO: Should check user functions before builtins.
             match (func.as_str(), &arg_types.as_slice()) {
-                // @TODO: Figure out how to match vectors here for the builtin functions!
-                // test fake builtin function
-                // @TODO: External functions that are passed in.
                 ("add", [TypeSpec::I32, TypeSpec::I32]) => { buf.write_u8(WasmOperator::I32Add as u8); return Ok(TypeSpec::I32) },
                 _ => {
-                    // Check for user defined functions.
                     if let Some(index) = fns.iter().position(|f| &f.name == func) {
                         // @TODO: Check types!, there could be multiple of every function name!
                         buf.write_u8(WasmOperator::Call as u8);
@@ -941,8 +937,6 @@ pub fn emit_module(module: Module) -> Result<Vec<u8>, CompileError> {
     write_size(funcs.len(), &mut code_section);
 
     for func in &funcs {
-        // @TODO: Get index for all the variable names (and also function calls)
-        // @TODO: should be able to have this be all refs? maybe?
         let mut locals = vec![];
         for param in &func.params {
             locals.push(param.var.clone());
@@ -991,8 +985,8 @@ pub fn emit_module(module: Module) -> Result<Vec<u8>, CompileError> {
     // @TODO: The name section can be used so all the vars have names when decoded for debugging.
 
     let mut buffer = vec![];
-    write_bytes(&[0,97,115,109], &mut buffer);
-    write_bytes(&[1,0,0,0], &mut buffer);
+    write_bytes(&[0,97,115,109], &mut buffer); // Wasm Magic Number
+    write_bytes(&[1,0,0,0], &mut buffer);      // Version 1.0
 
     write_section_code(WasmSectionCode::Type, &mut buffer);
     write_size(type_section.len(), &mut buffer);

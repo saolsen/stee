@@ -110,7 +110,7 @@ pub enum Expression {
         right: Box<Expression>,
         left: Box<Expression>,
     },
-    Name(String), // local or global variable probably.
+    Name(String),
     Call {
         func: String,
         args: Vec<Expression>,
@@ -212,9 +212,3 @@ pub enum Statement {
 pub struct Module {
     pub declarations: Vec<Declaration>
 }
-
-// globals
-// blocks as statements
-// pub functions for export
-// import function declarations
-// builtin functions

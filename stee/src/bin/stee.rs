@@ -1,4 +1,4 @@
-// Command line compiler.
+// @TODO: Command line compiler.
 
 extern crate stee;
 
@@ -6,6 +6,7 @@ use std::io::prelude::*;
 use std::fs::File;
 use std::io::BufWriter;
 
+// @NOTE: Right now I just use this to debug. Eventuially this will be a cli for the compiler.
 fn main() -> std::io::Result<()> {
     let src = r#"
     import func foo(x: i32) : i32;
@@ -24,5 +25,3 @@ fn main() -> std::io::Result<()> {
     w.write(&module)?;
     Ok(())
 }
-
-// so in the example, table has 2 1's   (table 1 1 anyfunc), and it's just a call instead of a call_indirect.
