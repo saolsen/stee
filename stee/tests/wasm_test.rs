@@ -83,6 +83,37 @@ fn test_import() {
     )
 }
 
+/* #[test]
+fn test_memory() {
+    test_program(r#"
+        // comments work!
+        export func main() : i32 { 
+            var ptr: i32;
+            var v: i32;
+            ptr = grow_memory(1);
+            i32_store(10, ptr);
+            v = i32_load(ptr);
+            return v;
+        }"#,
+        "main",
+        &[],
+        RuntimeValue::I32(10)
+    );
+} */
+
+
+#[test]
+fn test_builtins() {
+    test_program(r#"
+        export func main() : i32 { 
+            return 10;
+        }"#,
+        "main",
+        &[],
+        RuntimeValue::I32(10)
+    );
+}
+
 #[test]
 fn test_globals() {
     test_program(r#"

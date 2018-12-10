@@ -174,6 +174,10 @@ pub enum Declaration {
 #[derive(PartialEq, Debug)]
 pub enum Statement {
     NULL,
+    CALL {
+        func: String,
+        args: Vec<Expression>,
+    },
     BLOCK {
         block: Vec<Statement>,
     },

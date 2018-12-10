@@ -221,13 +221,29 @@ fn parse_statement(mut lexer: &mut Lexer) -> Result<Statement, CompileError> {
         },
         Token::NAME(_) => {
             // assignment
-            let var = lexer.expect_a_name()?;
-            lexer.expect_token(Token::EQUALS)?;
-            let exp = parse_expr(&mut lexer)?;
-            Ok(Statement::ASSIGN {
-                name: var,
-                expression: exp
-            })
+            let n = lexer.expect_a_name()?;
+            if lexer.match_token(Token::EQUALS)? {
+                let exp = parse_expr(&mut lexer)?;
+                Ok(Statement::ASSIGN {
+                    name: n,
+                    expression: exp
+                })
+            } else if lexer.match_token(Token::LP)? {
+                let mut args = vec![];
+                if !lexer.is_token(Token::RP) {
+                    args.push(parse_expr(&mut lexer)?);
+                    while lexer.match_token(Token::COMMA)? {
+                        args.push(parse_expr(&mut lexer)?);
+                    }
+                }
+                lexer.expect_token(Token::RP)?;
+                Ok(Statement::CALL {
+                    func: n,
+                    args
+                })
+            } else {
+                Err(CompileError::InvalidStatementToken {token: lexer.token.clone() })
+            }
         },
         _ => Err(CompileError::InvalidStatementToken {token: lexer.token.clone() })
     }
