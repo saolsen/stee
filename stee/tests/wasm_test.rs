@@ -101,18 +101,18 @@ fn test_memory() {
     );
 } */
 
-
+/* 
 #[test]
 fn test_builtins() {
     test_program(r#"
-        export func main() : i32 { 
-            return 10;
+        export func main() : f32 { 
+            return min(1.0, ceil(10.11));
         }"#,
         "main",
         &[],
-        RuntimeValue::I32(10)
+        RuntimeValue::F32(wasmi::nan_preserving_float::new(11.0))
     );
-}
+} */
 
 #[test]
 fn test_globals() {

@@ -180,11 +180,11 @@ enum WasmOperator {
     I32Or = 0x72,
     I32Xor = 0x73,
 
-    // I32Shl = 0x74,
-    // I32ShrS = 0x75,
-    // I32ShrU = 0x76,
-    // I32Rotl = 0x77,
-    // I32Rotr = 0x78,
+    I32Shl = 0x74,
+    I32ShrS = 0x75,
+    I32ShrU = 0x76,
+    I32Rotl = 0x77,
+    I32Rotr = 0x78,
 
     // I64Clz = 0x79,
     // I64Ctz = 0x7a,
@@ -201,11 +201,11 @@ enum WasmOperator {
     I64Or = 0x84,
     I64Xor = 0x85,
 
-    // I64Shl = 0x86,
-    // I64ShrS = 0x87,
-    // I64ShrU = 0x88,
-    // I64Rotl = 0x89,
-    // I64Rotr = 0x8a,
+    I64Shl = 0x86,
+    I64ShrS = 0x87,
+    I64ShrU = 0x88,
+    I64Rotl = 0x89,
+    I64Rotr = 0x8a,
 
     // F32Abs = 0x8b,
     // F32Neg = 0x8c,
@@ -287,7 +287,23 @@ fn emit_call(externs: &Vec<&Func>, fns: &Vec<&Func>, globals: &Vec<Var>, locals:
         ("i32_store", [TypeSpec::I32, TypeSpec::I32]) => {},
         ("i32_load", [TypeSpec::I32]) => {}
         */
+        ("shift_left", [TypeSpec::I32, TypeSpec::I32]) => { write_op(WasmOperator::I32Shl, &mut buf); return Ok(TypeSpec::I32) },
+        ("shift_left", [TypeSpec::U32, TypeSpec::U32]) => { write_op(WasmOperator::I32Shl, &mut buf); return Ok(TypeSpec::I32) },
+        ("shift_right", [TypeSpec::I32, TypeSpec::I32]) => { write_op(WasmOperator::I32ShrS, &mut buf); return Ok(TypeSpec::I32) },
+        ("shift_right", [TypeSpec::U32, TypeSpec::U32]) => { write_op(WasmOperator::I32ShrU, &mut buf); return Ok(TypeSpec::I32) },
+        ("rotate_left", [TypeSpec::I32, TypeSpec::I32]) => { write_op(WasmOperator::I32Rotl, &mut buf); return Ok(TypeSpec::I32) },
+        ("rotate_left", [TypeSpec::U32, TypeSpec::U32]) => { write_op(WasmOperator::I32Rotl, &mut buf); return Ok(TypeSpec::I32) },
+        ("rotate_right", [TypeSpec::I32, TypeSpec::I32]) => { write_op(WasmOperator::I32Rotr, &mut buf); return Ok(TypeSpec::I32) },
+        ("rotate_right", [TypeSpec::U32, TypeSpec::U32]) => { write_op(WasmOperator::I32Rotr, &mut buf); return Ok(TypeSpec::I32) },
 
+        ("shift_left", [TypeSpec::I64, TypeSpec::I64]) => { write_op(WasmOperator::I64Shl, &mut buf); return Ok(TypeSpec::I64) },
+        ("shift_left", [TypeSpec::U64, TypeSpec::U64]) => { write_op(WasmOperator::I64Shl, &mut buf); return Ok(TypeSpec::I64) },
+        ("shift_right", [TypeSpec::I64, TypeSpec::I64]) => { write_op(WasmOperator::I64ShrS, &mut buf); return Ok(TypeSpec::I64) },
+        ("shift_right", [TypeSpec::U64, TypeSpec::U64]) => { write_op(WasmOperator::I64ShrU, &mut buf); return Ok(TypeSpec::I64) },
+        ("rotate_left", [TypeSpec::I64, TypeSpec::I64]) => { write_op(WasmOperator::I64Rotl, &mut buf); return Ok(TypeSpec::I64) },
+        ("rotate_left", [TypeSpec::U64, TypeSpec::U64]) => { write_op(WasmOperator::I64Rotl, &mut buf); return Ok(TypeSpec::I64) },
+        ("rotate_right", [TypeSpec::I64, TypeSpec::I64]) => { write_op(WasmOperator::I64Rotr, &mut buf); return Ok(TypeSpec::I64) },
+        ("rotate_right", [TypeSpec::U64, TypeSpec::U64]) => { write_op(WasmOperator::I64Rotr, &mut buf); return Ok(TypeSpec::I64) },
 
         ("add", [TypeSpec::I32, TypeSpec::I32]) => { write_op(WasmOperator::I32Add, &mut buf); return Ok(TypeSpec::I32) },
         _ => {
