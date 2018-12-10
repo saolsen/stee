@@ -33,7 +33,7 @@ The best way to currently see how it works is to look at the [Tests](https://git
 
 ## Contact
 
-Email Me: steve@steve.computer
+Email Me: dev@steve.computer
 
 Mailing list: ~saolsen/stee@lists.sr.ht
 

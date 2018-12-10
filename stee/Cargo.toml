@@ -1,7 +1,7 @@
 [package]
 name = "stee"
 version = "0.1.0"
-authors = ["saolsen <steve.olsen@gmail.com>"]
+authors = ["saolsen <dev@steve.computer>"]
 edition = "2018"
 
 [dependencies]
