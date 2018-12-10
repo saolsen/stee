@@ -501,9 +501,9 @@ fn emit_exp(externs: &Vec<&Func>, fns: &Vec<&Func>, globals: &Vec<Var>, locals: 
             let lhs = emit_exp(externs, fns, globals, locals, buf, left)?;
             let rhs = emit_exp(externs, fns, globals, locals, buf, right)?;
             match (op, lhs, rhs) {
-                (Token::EQUALTO, TypeSpec::I32, TypeSpec::I32) => { buf.write_u8(WasmOperator::I32Eq as u8); return Ok(TypeSpec::I32) },
+                (Token::EQUALTO, TypeSpec::I32, TypeSpec::I32)  => { buf.write_u8(WasmOperator::I32Eq as u8); return Ok(TypeSpec::I32) },
                 (Token::NEQUALTO, TypeSpec::I32, TypeSpec::I32) => { buf.write_u8(WasmOperator::I32Ne as u8); return Ok(TypeSpec::I32) },
-                (Token::EQUALTO, TypeSpec::U32, TypeSpec::U32) => { buf.write_u8(WasmOperator::I32Eq as u8); return Ok(TypeSpec::I32) },
+                (Token::EQUALTO, TypeSpec::U32, TypeSpec::U32)  => { buf.write_u8(WasmOperator::I32Eq as u8); return Ok(TypeSpec::I32) },
                 (Token::NEQUALTO, TypeSpec::U32, TypeSpec::U32) => { buf.write_u8(WasmOperator::I32Ne as u8); return Ok(TypeSpec::I32) },
                 (Token::LT, TypeSpec::I32, TypeSpec::I32) => { buf.write_u8(WasmOperator::I32LtS as u8); return Ok(TypeSpec::I32) },
                 (Token::LT, TypeSpec::U32, TypeSpec::U32) => { buf.write_u8(WasmOperator::I32LtU as u8); return Ok(TypeSpec::I32) },
@@ -514,9 +514,9 @@ fn emit_exp(externs: &Vec<&Func>, fns: &Vec<&Func>, globals: &Vec<Var>, locals: 
                 (Token::GE, TypeSpec::I32, TypeSpec::I32) => { buf.write_u8(WasmOperator::I32GeS as u8); return Ok(TypeSpec::I32) },
                 (Token::GE, TypeSpec::U32, TypeSpec::U32) => { buf.write_u8(WasmOperator::I32GeU as u8); return Ok(TypeSpec::I32) },
 
-                (Token::EQUALTO, TypeSpec::I64, TypeSpec::I64) => { buf.write_u8(WasmOperator::I64Eq as u8); return Ok(TypeSpec::I32) },
+                (Token::EQUALTO, TypeSpec::I64, TypeSpec::I64)  => { buf.write_u8(WasmOperator::I64Eq as u8); return Ok(TypeSpec::I32) },
                 (Token::NEQUALTO, TypeSpec::I64, TypeSpec::I64) => { buf.write_u8(WasmOperator::I64Ne as u8); return Ok(TypeSpec::I32) },
-                (Token::EQUALTO, TypeSpec::U64, TypeSpec::U64) => { buf.write_u8(WasmOperator::I64Eq as u8); return Ok(TypeSpec::I32) },
+                (Token::EQUALTO, TypeSpec::U64, TypeSpec::U64)  => { buf.write_u8(WasmOperator::I64Eq as u8); return Ok(TypeSpec::I32) },
                 (Token::NEQUALTO, TypeSpec::U64, TypeSpec::U64) => { buf.write_u8(WasmOperator::I64Ne as u8); return Ok(TypeSpec::I32) },
                 (Token::LT, TypeSpec::I64, TypeSpec::I64) => { buf.write_u8(WasmOperator::I64LtS as u8); return Ok(TypeSpec::I32) },
                 (Token::LT, TypeSpec::U64, TypeSpec::U64) => { buf.write_u8(WasmOperator::I64LtU as u8); return Ok(TypeSpec::I32) },
@@ -527,14 +527,14 @@ fn emit_exp(externs: &Vec<&Func>, fns: &Vec<&Func>, globals: &Vec<Var>, locals: 
                 (Token::GE, TypeSpec::I64, TypeSpec::I64) => { buf.write_u8(WasmOperator::I64GeS as u8); return Ok(TypeSpec::I32) },
                 (Token::GE, TypeSpec::U64, TypeSpec::U64) => { buf.write_u8(WasmOperator::I64GeU as u8); return Ok(TypeSpec::I32) },
 
-                (Token::EQUALTO, TypeSpec::F32, TypeSpec::F32) => { buf.write_u8(WasmOperator::F32Eq as u8); return Ok(TypeSpec::I32) },
+                (Token::EQUALTO, TypeSpec::F32, TypeSpec::F32)  => { buf.write_u8(WasmOperator::F32Eq as u8); return Ok(TypeSpec::I32) },
                 (Token::NEQUALTO, TypeSpec::F32, TypeSpec::F32) => { buf.write_u8(WasmOperator::F32Ne as u8); return Ok(TypeSpec::I32) },
                 (Token::LT, TypeSpec::F32, TypeSpec::F32) => { buf.write_u8(WasmOperator::F32Lt as u8); return Ok(TypeSpec::I32) },
                 (Token::GT, TypeSpec::F32, TypeSpec::F32) => { buf.write_u8(WasmOperator::F32Gt as u8); return Ok(TypeSpec::I32) },
                 (Token::LE, TypeSpec::F32, TypeSpec::F32) => { buf.write_u8(WasmOperator::F32Le as u8); return Ok(TypeSpec::I32) },
                 (Token::GE, TypeSpec::F32, TypeSpec::F32) => { buf.write_u8(WasmOperator::F32Ge as u8); return Ok(TypeSpec::I32) },
 
-                (Token::EQUALTO, TypeSpec::F64, TypeSpec::F64) => { buf.write_u8(WasmOperator::F64Eq as u8); return Ok(TypeSpec::I32) },
+                (Token::EQUALTO, TypeSpec::F64, TypeSpec::F64)  => { buf.write_u8(WasmOperator::F64Eq as u8); return Ok(TypeSpec::I32) },
                 (Token::NEQUALTO, TypeSpec::F64, TypeSpec::F64) => { buf.write_u8(WasmOperator::F64Ne as u8); return Ok(TypeSpec::I32) },
                 (Token::LT, TypeSpec::F64, TypeSpec::F64) => { buf.write_u8(WasmOperator::F64Lt as u8); return Ok(TypeSpec::I32) },
                 (Token::GT, TypeSpec::F64, TypeSpec::F64) => { buf.write_u8(WasmOperator::F64Gt as u8); return Ok(TypeSpec::I32) },
@@ -547,7 +547,7 @@ fn emit_exp(externs: &Vec<&Func>, fns: &Vec<&Func>, globals: &Vec<Var>, locals: 
                 (Token::DIV, TypeSpec::I32, TypeSpec::I32) => { buf.write_u8(WasmOperator::I32DivS as u8); return Ok(TypeSpec::I32) },
                 (Token::REM, TypeSpec::I32, TypeSpec::I32) => { buf.write_u8(WasmOperator::I32RemS as u8); return Ok(TypeSpec::I32) },
                 (Token::AND, TypeSpec::I32, TypeSpec::I32) => { buf.write_u8(WasmOperator::I32And as u8); return Ok(TypeSpec::I32) },
-                (Token::OR, TypeSpec::I32, TypeSpec::I32) => { buf.write_u8(WasmOperator::I32Or as u8); return Ok(TypeSpec::I32) },
+                (Token::OR,  TypeSpec::I32, TypeSpec::I32) => { buf.write_u8(WasmOperator::I32Or as u8); return Ok(TypeSpec::I32) },
                 (Token::XOR, TypeSpec::I32, TypeSpec::I32) => { buf.write_u8(WasmOperator::I32Xor as u8); return Ok(TypeSpec::I32) },
                 (Token::ADD, TypeSpec::U32, TypeSpec::U32) => { buf.write_u8(WasmOperator::I32Add as u8); return Ok(TypeSpec::U32) },
                 (Token::SUB, TypeSpec::U32, TypeSpec::U32) => { buf.write_u8(WasmOperator::I32Sub as u8); return Ok(TypeSpec::U32) },
@@ -555,7 +555,7 @@ fn emit_exp(externs: &Vec<&Func>, fns: &Vec<&Func>, globals: &Vec<Var>, locals: 
                 (Token::DIV, TypeSpec::U32, TypeSpec::U32) => { buf.write_u8(WasmOperator::I32DivU as u8); return Ok(TypeSpec::U32) },
                 (Token::REM, TypeSpec::U32, TypeSpec::U32) => { buf.write_u8(WasmOperator::I32RemU as u8); return Ok(TypeSpec::U32) },
                 (Token::AND, TypeSpec::U32, TypeSpec::U32) => { buf.write_u8(WasmOperator::I32And as u8); return Ok(TypeSpec::U32) },
-                (Token::OR, TypeSpec::U32, TypeSpec::U32) => { buf.write_u8(WasmOperator::I32Or as u8); return Ok(TypeSpec::U32) },
+                (Token::OR,  TypeSpec::U32, TypeSpec::U32) => { buf.write_u8(WasmOperator::I32Or as u8); return Ok(TypeSpec::U32) },
                 (Token::XOR, TypeSpec::U32, TypeSpec::U32) => { buf.write_u8(WasmOperator::I32Xor as u8); return Ok(TypeSpec::U32) },
 
                 (Token::ADD, TypeSpec::I64, TypeSpec::I64) => { buf.write_u8(WasmOperator::I64Add as u8);  return Ok(TypeSpec::I64) },
@@ -602,7 +602,7 @@ fn emit_exp(externs: &Vec<&Func>, fns: &Vec<&Func>, globals: &Vec<Var>, locals: 
                 return Err(CompileError::UnknownVariable{name: n.clone()})
             }
         },
-        Expression::Call{func, args} => {
+        Expression::Call {func, args} => {
             let mut arg_types = vec![];
             for arg in args {
                 arg_types.push(emit_exp(externs, fns, globals, locals, buf, arg)?);
@@ -616,7 +616,7 @@ fn emit_exp(externs: &Vec<&Func>, fns: &Vec<&Func>, globals: &Vec<Var>, locals: 
                 _ => {
                     // Check for user defined functions.
                     if let Some(index) = fns.iter().position(|f| &f.name == func) {
-                        // @TODO: Check types!, there will be multiple of every function name!
+                        // @TODO: Check types!, there could be multiple of every function name!
                         buf.write_u8(WasmOperator::Call as u8);
                         write_size(index+externs.len(), &mut buf);
                         return Ok(fns[index].return_type);
@@ -627,10 +627,6 @@ fn emit_exp(externs: &Vec<&Func>, fns: &Vec<&Func>, globals: &Vec<Var>, locals: 
                     } else {
                         return Err(CompileError::UnknownFunction{func: func.clone(), arg_types: arg_types.clone()})
                     }
-
-                    // the function index space includes imports, it also starts with imports
-                    // so call operators need to add the length of the imports to their fn index
-                    // when they make the call.
                 }
             }
         }
@@ -801,7 +797,7 @@ fn emit_statement(externs: &Vec<&Func>, fns: &Vec<&Func>, globals: &Vec<Var>, lo
         }
         Statement::RETURN(expression) => {
             emit_exp(externs, fns, globals, locals, &mut buf, expression)?;
-            buf.write_u8(0x0f); // return
+            write_op(WasmOperator::Return, &mut buf);
             Ok(())
         },
         _ => Ok(())// @TODO

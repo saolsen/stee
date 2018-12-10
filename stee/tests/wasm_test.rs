@@ -24,13 +24,6 @@ fn test_program(src: &str, func: &str, args: &[RuntimeValue], result: RuntimeVal
 // All the possible errors?
 // Compilation benchmarks?
 
-struct EnvModuleResolver;
-impl ::wasmi::ModuleImportResolver for EnvModuleResolver {
-
-}
-
-// So you crate the module with import definitions, and then you invoke it with externals.
-
 struct EnvResolver;
 impl ModuleImportResolver for EnvResolver {
     fn resolve_func(&self, field_name: &str, _signature: &Signature) -> Result<FuncRef, InterpreterError> {
