@@ -8,13 +8,10 @@ use std::io::BufWriter;
 
 fn main() -> std::io::Result<()> {
     let src = r#"
-        // comments work!
-        var x : i32;
-        func main() : i32 { 
-            x = 10;
-            return x;
-        }
-    "#.to_string();
+    import func foo(x: i32) : i32;
+    export func main() : i32 {
+      return foo(5);
+    }"#.to_string();
     let module = stee::compile(src);
     if let Err(err)  = module {
         println!("{:?}", err);
@@ -27,3 +24,5 @@ fn main() -> std::io::Result<()> {
     w.write(&module)?;
     Ok(())
 }
+
+// so in the example, table has 2 1's   (table 1 1 anyfunc), and it's just a call instead of a call_indirect.

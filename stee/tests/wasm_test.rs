@@ -1,14 +1,16 @@
 extern crate stee;
 extern crate wasmi;
 
-use wasmi::{ModuleInstance, ImportsBuilder, NopExternals, RuntimeValue};
+use wasmi::{
+    Signature, FuncRef, Error as InterpreterError, RuntimeArgs, Trap, FuncInstance, ValueType,
+    Externals, ModuleInstance, ImportsBuilder, NopExternals, RuntimeValue, ImportResolver, ModuleImportResolver};
 
 fn test_program(src: &str, func: &str, args: &[RuntimeValue], result: RuntimeValue) {
     let wasm_binary = stee::compile(src.to_string()).expect("failed to compile");
     let module = wasmi::Module::from_buffer(&wasm_binary).expect("failed to load wasm");
     let instance = ModuleInstance::new(
         &module,
-        &ImportsBuilder::default()
+        &ImportsBuilder::default(),
     ).expect("failed to instantiate wasm module").assert_no_start();
     assert_eq!(
         instance.invoke_export(func, args, &mut NopExternals).expect("failed to execute export"),
@@ -22,12 +24,86 @@ fn test_program(src: &str, func: &str, args: &[RuntimeValue], result: RuntimeVal
 // All the possible errors?
 // Compilation benchmarks?
 
+struct EnvModuleResolver;
+impl ::wasmi::ModuleImportResolver for EnvModuleResolver {
+
+}
+
+// So you crate the module with import definitions, and then you invoke it with externals.
+
+struct FooResolver;
+
+impl ModuleImportResolver for FooResolver {
+    fn resolve_func(&self, field_name: &str, _signature: &Signature) -> Result<FuncRef, InterpreterError> {
+        let func_ref = match field_name {
+            "foo" => {
+                FuncInstance::alloc_host(Signature::new(&[ValueType::I32][..], Some(ValueType::I32)), 0)
+            },
+            _ => return Err(
+                InterpreterError::Function(
+                    format!("host module doesn't export function with name {}", field_name)
+            ))
+        };
+        Ok(func_ref)
+    }
+}
+
+struct Runtime;
+
+impl Externals for Runtime {
+    fn invoke_index(
+		&mut self,
+		index: usize,
+		args: RuntimeArgs,
+	) -> Result<Option<RuntimeValue>, Trap> {
+		match index {
+			0 => {
+				let idx: i32 = args.nth(0);
+                Ok(Some(RuntimeValue::I32(idx + 1)))
+			}
+			_ => panic!("unknown function index")
+		}
+	}
+}
+
+#[test]
+fn test_import() {
+    let src = r#"
+    import func foo(x: i32) : i32;
+    export func main() : i32 {
+      return 9;
+    }
+    // comments work!
+//    var x: i32;
+//    import func foo(a: i32) : i32;
+//    export func main() : i32 { 
+//        x = foo(x);
+//        return x;
+//    }
+    "#;
+    let mut imports = ImportsBuilder::new()
+        .with_resolver("foo", &FooResolver);
+
+    let mut runtime = Runtime;
+
+    let wasm_binary = stee::compile(src.to_string()).expect("failed to compile");
+    let module = wasmi::Module::from_buffer(&wasm_binary).expect("failed to load wasm");
+    let instance = ModuleInstance::new(
+        &module,
+        &imports
+    ).expect("failed to instantiate wasm module").assert_no_start();
+    assert_eq!(
+        instance.invoke_export("main", &[], &mut runtime).expect("failed to execute export"),
+        Some(RuntimeValue::I32(9))
+    )
+}
+
 #[test]
 fn test_globals() {
     test_program(r#"
         // comments work!
         var x: i32;
-        func main() : i32 { 
+        export func main() : i32 { 
             x = x + 10;
             return x;
         }"#,
@@ -41,6 +117,7 @@ fn test_globals() {
 fn test_lots_of_stuff() {
     test_program(r#"
         // comments work!
+        export
         func main() : i32 { 
             var y: i64;
             var x: i32;
@@ -60,6 +137,7 @@ fn test_lots_of_stuff() {
 fn test_if_statement() {
     test_program(r#"
         // comments work!
+        export
         func main() : i32 { 
             var x: i32;
             x = 5;
@@ -81,6 +159,7 @@ fn test_if_statement() {
 fn test_for_loop() {
     test_program(r#"
         // comments work!
+        export
         func main() : i32 { 
             var x: i32;
             var y: i32;
@@ -99,6 +178,7 @@ fn test_for_loop() {
 fn test_while_loop() {
     test_program(r#"
         // comments work!
+        export
         func main() : i32 { 
             var x: i32;
             x = 5;
@@ -117,6 +197,7 @@ fn test_while_loop() {
 fn test_switch() {
     test_program(r#"
         // comments work!
+        export
         func main() : i32 { 
             var x: i32;
             var y: i32;
@@ -140,6 +221,7 @@ fn test_switch() {
 #[test]
 fn test_it_runs() {
     test_program(r#"
+        export
         func main() : i32 { 
             return 0;
         }"#,
@@ -155,6 +237,7 @@ fn it_still_tests() {
         func steveadd(a: i32, b: i32) : i32 {
             return add(a,b);
         }
+        export
         func main(a: i32, b: i32) : i32 { 
             return steveadd(a,b);
         }"#,
@@ -170,6 +253,7 @@ fn it_tests() {
     func steveadd(a: i32, b: i32) : i32 {
         return add(a,b);
     }
+    export
     func main(a: i32, b: i32) : i32 { 
         return steveadd(a,b);
     }

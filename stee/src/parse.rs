@@ -246,7 +246,7 @@ fn parse_statement_block(mut lexer: &mut Lexer) -> Result<Vec<Statement>, Compil
     Ok(statements)
 }
 
-fn parse_func(mut lexer: &mut Lexer) -> Result<Declaration, CompileError> {
+fn parse_func(kind: FuncKind, mut lexer: &mut Lexer) -> Result<Declaration, CompileError> {
     lexer.expect_name("func")?;
     if let Token::NAME(name) = lexer.token.clone() {
         lexer.next_token()?;
@@ -264,7 +264,7 @@ fn parse_func(mut lexer: &mut Lexer) -> Result<Declaration, CompileError> {
             return_type = parse_typespec(&mut lexer)?;
         }
         let block = parse_statement_block(&mut lexer)?;
-        Ok(Declaration::FUNC {func: Func{name: name, params, return_type, block}})
+        Ok(Declaration::FUNC {func: Func{kind, name, params, return_type, block}})
     } else {
         Err(CompileError::InvalidToken{
             expected: Token::NAME("".to_string()),
@@ -291,8 +291,45 @@ fn parse_declaration(mut lexer: &mut Lexer) -> Result<Declaration, CompileError>
                 }
             })
         },
+        Token::NAME(ref n) if n == "export" => {
+            lexer.next_token()?;
+            parse_func(FuncKind::Export, &mut lexer)
+        },
+        Token::NAME(ref n) if n == "import" => {
+            lexer.next_token()?;
+            lexer.expect_name("func")?;
+            if let Token::NAME(name) = lexer.token.clone() {
+                lexer.next_token()?;
+                lexer.expect_token(Token::LP)?;
+                let mut params : Vec<FuncParam> = vec![];
+                if !lexer.is_token(Token::RP) {
+                    params.push(parse_param(&mut lexer)?);
+                    while lexer.match_token(Token::COMMA)? {
+                        params.push(parse_param(&mut lexer)?);
+                    }
+                }
+                lexer.expect_token(Token::RP)?;
+                let mut return_type = TypeSpec::NULL;
+                if lexer.match_token(Token::COLON)? {
+                    return_type = parse_typespec(&mut lexer)?;
+                }
+                lexer.expect_token(Token::SEMICOLON)?;
+                Ok(Declaration::EXTERN {func: Func{
+                    kind: FuncKind::Import,
+                    name,
+                    params,
+                    return_type,
+                    block: vec![]
+                }})
+            } else {
+                Err(CompileError::InvalidToken{
+                    expected: Token::NAME("".to_string()),
+                    got: lexer.token.clone()
+                })
+            }
+        },
         Token::NAME(ref n) if n == "func" => {
-            parse_func(&mut lexer)
+            parse_func(FuncKind::Internal, &mut lexer)
         },
         _ => Err(CompileError::InvalidDeclarationToken{token: lexer.token.clone()})
     }

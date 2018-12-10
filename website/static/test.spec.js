@@ -38,7 +38,7 @@ describe("Stee", function() {
         bar = i - j;
         return foo;
     }
-    func main() : i32 {
+    export func main() : i32 {
         return add(1,2) + add(3,4);
     }`, 10);
 
@@ -59,4 +59,32 @@ describe("Stee", function() {
       done();
     }
   });
+
+  it("call import", function(done) {
+    let src = `
+    import func foo(x: i32) : i32;
+    export func main() : i32 {
+      return foo(5);
+    }
+    `;
+
+    let importObject = {
+      env: {
+        foo: function(i) { return i + 1; }
+      }
+    };
+
+    try {
+      console.log(importObject);
+      compile(src, importObject).then(r => {
+        window.r = r;
+        expect(r.instance.exports.main()).toBe(6);
+        done();
+      });
+    } catch(e) {
+      expect(e).toBe(null);
+      done();
+    }
+  });
+
 });

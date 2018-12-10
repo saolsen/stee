@@ -89,7 +89,7 @@ enum WasmOperator {
     Return = 0x0f,
     
     Call = 0x10,
-    call_indirect = 0x11,
+    CallIndirect = 0x11,
 
     drop = 0x1a,
     select = 0x1b,
@@ -455,7 +455,7 @@ enum WasmOperator {
 //     f64_reinterpret_i64 = 0xbf,
 // }
 
-fn emit_exp(fns: &Vec<&Func>, globals: &Vec<Var>, locals: &Vec<Var>, mut buf: &mut Vec<u8>, exp: &Expression) -> Result<TypeSpec, CompileError> {
+fn emit_exp(externs: &Vec<&Func>, fns: &Vec<&Func>, globals: &Vec<Var>, locals: &Vec<Var>, mut buf: &mut Vec<u8>, exp: &Expression) -> Result<TypeSpec, CompileError> {
     // @TODO: Don't return stuff, just have the value be the result of the match arm.
     match exp {
         // @TODO: This is writing everything as unsigned which is wrong!
@@ -466,7 +466,7 @@ fn emit_exp(fns: &Vec<&Func>, globals: &Vec<Var>, locals: &Vec<Var>, mut buf: &m
         Expression::F32(f) => { buf.write_u8(WasmOperator::F32Const as u8); buf.write_f32::<LittleEndian>(*f as f32).expect("oh no"); return Ok(TypeSpec::F32)},
         Expression::F64(f) => { buf.write_u8(WasmOperator::F64Const as u8); buf.write_f64::<LittleEndian>(*f as f64).expect("oh no"); return Ok(TypeSpec::F64)},
         Expression::Unary {op, arg} => {
-            let argument = emit_exp(fns, globals, locals, buf, arg)?;
+            let argument = emit_exp(externs, fns, globals, locals, buf, arg)?;
             match (op, argument) {
                 (Token::NOT, TypeSpec::I32) => { buf.write_u8(WasmOperator::I32Eqz as u8); return Ok(TypeSpec::I32) },
                 (Token::NOT, TypeSpec::I64) => { buf.write_u8(WasmOperator::I64Eqz as u8); return Ok(TypeSpec::I32) },
@@ -498,8 +498,8 @@ fn emit_exp(fns: &Vec<&Func>, globals: &Vec<Var>, locals: &Vec<Var>, mut buf: &m
             }
         },
         Expression::Binary {op, left, right} => {
-            let lhs = emit_exp(fns, globals, locals, buf, left)?;
-            let rhs = emit_exp(fns, globals, locals, buf, right)?;
+            let lhs = emit_exp(externs, fns, globals, locals, buf, left)?;
+            let rhs = emit_exp(externs, fns, globals, locals, buf, right)?;
             match (op, lhs, rhs) {
                 (Token::EQUALTO, TypeSpec::I32, TypeSpec::I32) => { buf.write_u8(WasmOperator::I32Eq as u8); return Ok(TypeSpec::I32) },
                 (Token::NEQUALTO, TypeSpec::I32, TypeSpec::I32) => { buf.write_u8(WasmOperator::I32Ne as u8); return Ok(TypeSpec::I32) },
@@ -605,8 +605,9 @@ fn emit_exp(fns: &Vec<&Func>, globals: &Vec<Var>, locals: &Vec<Var>, mut buf: &m
         Expression::Call{func, args} => {
             let mut arg_types = vec![];
             for arg in args {
-                arg_types.push(emit_exp(fns, globals, locals, buf, arg)?);
+                arg_types.push(emit_exp(externs, fns, globals, locals, buf, arg)?);
             }
+            // @TODO: Should check user functions before builtins.
             match (func.as_str(), &arg_types.as_slice()) {
                 // @TODO: Figure out how to match vectors here for the builtin functions!
                 // test fake builtin function
@@ -617,12 +618,19 @@ fn emit_exp(fns: &Vec<&Func>, globals: &Vec<Var>, locals: &Vec<Var>, mut buf: &m
                     if let Some(index) = fns.iter().position(|f| &f.name == func) {
                         // @TODO: Check types!, there will be multiple of every function name!
                         buf.write_u8(WasmOperator::Call as u8);
-                        write_size(index, &mut buf);
+                        write_size(index+externs.len(), &mut buf);
                         return Ok(fns[index].return_type);
+                    } else if let Some(index) = externs.iter().position(|f| &f.name == func) {
+                        buf.write_u8(WasmOperator::Call as u8);
+                        write_size(index, &mut buf);
+                        return Ok(externs[index].return_type)
                     } else {
                         return Err(CompileError::UnknownFunction{func: func.clone(), arg_types: arg_types.clone()})
                     }
 
+                    // the function index space includes imports, it also starts with imports
+                    // so call operators need to add the length of the imports to their fn index
+                    // when they make the call.
                 }
             }
         }
@@ -630,11 +638,11 @@ fn emit_exp(fns: &Vec<&Func>, globals: &Vec<Var>, locals: &Vec<Var>, mut buf: &m
     }
 }
 
-fn emit_statement(fns: &Vec<&Func>, globals: &Vec<Var>, locals: &Vec<Var>, mut buf: &mut Vec<u8>, statement: &Statement) -> Result<(), CompileError> {
+fn emit_statement(externs: &Vec<&Func>, fns: &Vec<&Func>, globals: &Vec<Var>, locals: &Vec<Var>, mut buf: &mut Vec<u8>, statement: &Statement) -> Result<(), CompileError> {
     match statement {
         Statement::ASSIGN {name, expression} => {
             // @NOTE: There are only two scopes right now. Globals and function locals. No lexical scoping.
-            let exp_type = emit_exp(fns, globals, locals, &mut buf, expression)?;
+            let exp_type = emit_exp(externs, fns, globals, locals, &mut buf, expression)?;
             if let Some(index) = locals.iter().position(|v| &v.name == name) {
                 if locals[index].typespec == exp_type {
                     buf.write_u8(WasmOperator::SetLocal as u8);
@@ -656,19 +664,19 @@ fn emit_statement(fns: &Vec<&Func>, globals: &Vec<Var>, locals: &Vec<Var>, mut b
             }
         },
         Statement::IF { condition, then_block, else_block } => {
-            let exp_type = emit_exp(fns, globals, locals, &mut buf, condition)?;
+            let exp_type = emit_exp(externs, fns, globals, locals, &mut buf, condition)?;
             if exp_type != TypeSpec::I32 {
                 return Err(CompileError::TypeMismatch{expected: TypeSpec::I32, got: exp_type})
             }
             buf.write_u8(WasmOperator::If as u8);
             buf.write_u8(WasmType::EmptyBlock as u8);
             for stmt in then_block {
-                emit_statement(&fns, &globals, &locals, &mut buf, &stmt)?;
+                emit_statement(&externs, &fns, &globals, &locals, &mut buf, &stmt)?;
             }
             if else_block.len() > 0 {
                 buf.write_u8(WasmOperator::Else as u8);
                 for stmt in else_block {
-                    emit_statement(&fns, &globals, &locals, &mut buf, &stmt)?;
+                    emit_statement(&externs, &fns, &globals, &locals, &mut buf, &stmt)?;
                 }
             }
             buf.write_u8(WasmOperator::End as u8);
@@ -680,7 +688,7 @@ fn emit_statement(fns: &Vec<&Func>, globals: &Vec<Var>, locals: &Vec<Var>, mut b
             
             buf.write_u8(WasmOperator::Loop as u8);
             buf.write_u8(WasmType::EmptyBlock as u8);
-            let exp_type = emit_exp(fns, globals, locals, &mut buf, condition)?;
+            let exp_type = emit_exp(externs, fns, globals, locals, &mut buf, condition)?;
             if exp_type != TypeSpec::I32 {
                 return Err(CompileError::TypeMismatch{expected: TypeSpec::I32, got: exp_type})
             }
@@ -688,7 +696,7 @@ fn emit_statement(fns: &Vec<&Func>, globals: &Vec<Var>, locals: &Vec<Var>, mut b
             buf.write_u8(WasmOperator::BrIf as u8);
             write_size(1, &mut buf);
             for stmt in block {
-                emit_statement(&fns, &globals, &locals, &mut buf, &stmt)?;
+                emit_statement(&externs, &fns, &globals, &locals, &mut buf, &stmt)?;
             }
             buf.write_u8(WasmOperator::Br as u8);
             write_size(0, &mut buf);
@@ -697,12 +705,12 @@ fn emit_statement(fns: &Vec<&Func>, globals: &Vec<Var>, locals: &Vec<Var>, mut b
             Ok(())
         },
         Statement::FOR { setup, condition, iter, block } => {
-            emit_statement(&fns, &globals, &locals, &mut buf, setup)?;
+            emit_statement(&externs, &fns, &globals, &locals, &mut buf, setup)?;
             buf.write_u8(WasmOperator::Block as u8);
             buf.write_u8(WasmType::EmptyBlock as u8);
             buf.write_u8(WasmOperator::Loop as u8);
             buf.write_u8(WasmType::EmptyBlock as u8);
-            let exp_type = emit_exp(fns, globals, locals, &mut buf, condition)?;
+            let exp_type = emit_exp(externs, fns, globals, locals, &mut buf, condition)?;
             if exp_type != TypeSpec::I32 {
                 return Err(CompileError::TypeMismatch{expected: TypeSpec::I32, got: exp_type})
             }
@@ -710,9 +718,9 @@ fn emit_statement(fns: &Vec<&Func>, globals: &Vec<Var>, locals: &Vec<Var>, mut b
             buf.write_u8(WasmOperator::BrIf as u8);
             write_size(1, &mut buf);
             for stmt in block {
-                emit_statement(&fns, &globals, &locals, &mut buf, &stmt)?;
+                emit_statement(&externs, &fns, &globals, &locals, &mut buf, &stmt)?;
             }
-            emit_statement(&fns, &globals, &locals, &mut buf, iter)?;
+            emit_statement(&externs, &fns, &globals, &locals, &mut buf, iter)?;
             buf.write_u8(WasmOperator::Br as u8);
             write_size(0, &mut buf);
             buf.write_u8(WasmOperator::End as u8);
@@ -762,7 +770,7 @@ fn emit_statement(fns: &Vec<&Func>, globals: &Vec<Var>, locals: &Vec<Var>, mut b
             
             buf.write_u8(WasmOperator::Block as u8);
             buf.write_u8(WasmType::EmptyBlock as u8);
-            let index_type = emit_exp(fns, globals, locals, &mut buf, index)?;
+            let index_type = emit_exp(externs, fns, globals, locals, &mut buf, index)?;
             if index_type != TypeSpec::I32 {
                 return Err(CompileError::TypeMismatch{expected: TypeSpec::I32, got: index_type})
             }
@@ -775,7 +783,7 @@ fn emit_statement(fns: &Vec<&Func>, globals: &Vec<Var>, locals: &Vec<Var>, mut b
             buf.write_u8(WasmOperator::End as u8);
 
             for stmt in default {
-                emit_statement(&fns, &globals, &locals, &mut buf, &stmt)?;
+                emit_statement(&externs, &fns, &globals, &locals, &mut buf, &stmt)?;
             }
             let mut break_level = values.len();
             for i in (0..values.len()) {
@@ -784,7 +792,7 @@ fn emit_statement(fns: &Vec<&Func>, globals: &Vec<Var>, locals: &Vec<Var>, mut b
                 break_level -= 1;
                 buf.write_u8(WasmOperator::End as u8);
                 for stmt in &blocks[i] {
-                   emit_statement(&fns, &globals, &locals, &mut buf, &stmt)?;
+                   emit_statement(&externs, &fns, &globals, &locals, &mut buf, &stmt)?;
                 }
             }
 
@@ -792,7 +800,7 @@ fn emit_statement(fns: &Vec<&Func>, globals: &Vec<Var>, locals: &Vec<Var>, mut b
             Ok(())
         }
         Statement::RETURN(expression) => {
-            emit_exp(fns, globals, locals, &mut buf, expression)?;
+            emit_exp(externs, fns, globals, locals, &mut buf, expression)?;
             buf.write_u8(0x0f); // return
             Ok(())
         },
@@ -801,16 +809,28 @@ fn emit_statement(fns: &Vec<&Func>, globals: &Vec<Var>, locals: &Vec<Var>, mut b
 }
 
 pub fn emit_module(module: Module) -> Result<Vec<u8>, CompileError> {
+    // @TODO: Maybe change the module format to fit this since it's the first thing we do.
+    let mut globals = vec![];
+    let mut externs = vec![];
     let mut funcs = vec![];
     for decl in &module.declarations {
-        if let Declaration::FUNC {func} = decl {
-            funcs.push(func);
+        match decl {
+            Declaration::GLOBAL {var} => {
+                globals.push(var.clone());
+            },
+            Declaration::EXTERN {func} => {
+                externs.push(func);
+            },
+            Declaration::FUNC {func} => {
+                funcs.push(func);
+            },
+            _ => {}
         }
     }
 
     let mut type_section = vec![];
-    write_size(funcs.len(), &mut type_section);
-    for func in &funcs {
+    write_size(externs.len() + funcs.len(), &mut type_section);
+    for func in (&externs).iter().chain((&funcs).iter()) {
         write_type(WasmType::Func, &mut type_section);
         write_size(func.params.len(), &mut type_section);
         let param_types = func.params.iter().map(|p| p.var.typespec).collect::<Vec<TypeSpec>>();
@@ -836,18 +856,29 @@ pub fn emit_module(module: Module) -> Result<Vec<u8>, CompileError> {
         }
     }
 
+    let mut import_section = vec![];
+    write_size(externs.len(), &mut import_section);
+    for (i, func) in externs.iter().enumerate() {
+        write_size(3, &mut import_section);
+        write_bytes(b"env", &mut import_section);
+        write_size(func.name.len(), &mut import_section);
+        write_bytes(func.name.as_bytes(), &mut import_section);
+        write_extern_kind(WasmExternalKind::Function, &mut import_section);
+        write_size(i, &mut import_section);
+    }
+
     let mut function_section = vec![];
     write_size(funcs.len(), &mut function_section);
     for i in 0..funcs.len() {
-        write_size(i, &mut function_section);
+        write_size(externs.len()+i, &mut function_section);
     }
 
-    let mut globals = vec![];
-    for decl in &module.declarations {
-        if let Declaration::GLOBAL{var} = decl {
-            globals.push(var.clone());
-        }
-    }
+    // @TODO: Look into table section again, do I need a thing per import? Probably.
+    let mut table_section = vec![];
+    write_size(1, &mut table_section);
+    write_type(WasmType::AnyFunc, &mut table_section);
+    write_size(0, &mut table_section);
+    write_size(externs.len(), &mut table_section);
 
     let mut global_section = vec![];
     write_size(globals.len(), &mut global_section);
@@ -900,12 +931,14 @@ pub fn emit_module(module: Module) -> Result<Vec<u8>, CompileError> {
     }
 
     let mut export_section = vec![];
-    write_size(funcs.len(), &mut export_section);
+    write_size(funcs.iter().filter(|f| f.kind == FuncKind::Export).count(), &mut export_section);
     for (i, func) in funcs.iter().enumerate() {
-        write_size(func.name.len(), &mut export_section);
-        write_bytes(func.name.as_bytes(), &mut export_section);
-        write_extern_kind(WasmExternalKind::Function, &mut export_section);
-        write_size(i, &mut export_section); // which function
+        if func.kind == FuncKind::Export {
+            write_size(func.name.len(), &mut export_section);
+            write_bytes(func.name.as_bytes(), &mut export_section);
+            write_extern_kind(WasmExternalKind::Function, &mut export_section);
+            write_size(i+externs.len(), &mut export_section); // which function
+        }
     }
 
     let mut code_section = vec![];
@@ -947,7 +980,7 @@ pub fn emit_module(module: Module) -> Result<Vec<u8>, CompileError> {
 
         // emit the code
         for stmt in &func.block {
-            emit_statement(&funcs, &globals, &locals, &mut func_body, &stmt)?;
+            emit_statement(&externs, &funcs, &globals, &locals, &mut func_body, &stmt)?;
         }
 
         // end
@@ -969,9 +1002,17 @@ pub fn emit_module(module: Module) -> Result<Vec<u8>, CompileError> {
     write_size(type_section.len(), &mut buffer);
     write_bytes(&type_section, &mut buffer);
 
+    write_section_code(WasmSectionCode::Import, &mut buffer);
+    write_size(import_section.len(), &mut buffer);
+    write_bytes(&import_section, &mut buffer);
+
     write_section_code(WasmSectionCode::Function, &mut buffer);
     write_size(function_section.len(), &mut buffer);
     write_bytes(&function_section, &mut buffer);
+
+    write_section_code(WasmSectionCode::Table, &mut buffer);
+    write_size(table_section.len(), &mut buffer);
+    write_bytes(&table_section, &mut buffer);
 
     write_section_code(WasmSectionCode::Global, &mut buffer);
     write_size(global_section.len(), &mut buffer);
@@ -995,8 +1036,7 @@ mod tests {
     #[test]
     fn test_leb128() {
         let mut a = vec![];
-        write_u64(0, &mut a);
-        println!("{:?}", a);
-        //assert_eq!(bytes, [42]);
+        write_u64(12345678, &mut a);
+        assert_eq!(a, [206, 194, 241, 5]);
     }
 }

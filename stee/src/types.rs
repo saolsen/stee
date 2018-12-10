@@ -140,7 +140,15 @@ pub struct FuncParam {
 }
 
 #[derive(PartialEq, Debug)]
+pub enum FuncKind {
+    Import,
+    Export,
+    Internal
+}
+
+#[derive(PartialEq, Debug)]
 pub struct Func {
+    pub kind: FuncKind,
     pub name: String,
     pub params: Vec<FuncParam>,
     pub return_type: TypeSpec,
@@ -157,9 +165,7 @@ pub enum Declaration {
         var: Var
     },
     EXTERN {
-        name: String,
-        params: Vec<FuncParam>,
-        return_type: TypeSpec,
+        func: Func
     }
     // @TODO: Const
     // @TODO: Type definitions like structs and enums.
