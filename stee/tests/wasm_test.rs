@@ -31,9 +31,8 @@ impl ::wasmi::ModuleImportResolver for EnvModuleResolver {
 
 // So you crate the module with import definitions, and then you invoke it with externals.
 
-struct FooResolver;
-
-impl ModuleImportResolver for FooResolver {
+struct EnvResolver;
+impl ModuleImportResolver for EnvResolver {
     fn resolve_func(&self, field_name: &str, _signature: &Signature) -> Result<FuncRef, InterpreterError> {
         let func_ref = match field_name {
             "foo" => {
@@ -71,18 +70,11 @@ fn test_import() {
     let src = r#"
     import func foo(x: i32) : i32;
     export func main() : i32 {
-      return 9;
+      return foo(9);
     }
-    // comments work!
-//    var x: i32;
-//    import func foo(a: i32) : i32;
-//    export func main() : i32 { 
-//        x = foo(x);
-//        return x;
-//    }
     "#;
     let mut imports = ImportsBuilder::new()
-        .with_resolver("foo", &FooResolver);
+        .with_resolver("env", &EnvResolver);
 
     let mut runtime = Runtime;
 
@@ -94,7 +86,7 @@ fn test_import() {
     ).expect("failed to instantiate wasm module").assert_no_start();
     assert_eq!(
         instance.invoke_export("main", &[], &mut runtime).expect("failed to execute export"),
-        Some(RuntimeValue::I32(9))
+        Some(RuntimeValue::I32(10))
     )
 }
 
