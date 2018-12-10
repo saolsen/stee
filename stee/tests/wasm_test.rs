@@ -3,7 +3,7 @@ extern crate wasmi;
 
 use wasmi::{
     Signature, FuncRef, Error as InterpreterError, RuntimeArgs, Trap, FuncInstance, ValueType,
-    Externals, ModuleInstance, ImportsBuilder, NopExternals, RuntimeValue, ImportResolver, ModuleImportResolver};
+    Externals, ModuleInstance, ImportsBuilder, NopExternals, RuntimeValue, ModuleImportResolver};
 
 fn test_program(src: &str, func: &str, args: &[RuntimeValue], result: RuntimeValue) {
     let wasm_binary = stee::compile(src.to_string()).expect("failed to compile");
@@ -66,7 +66,7 @@ fn test_import() {
       return foo(9);
     }
     "#;
-    let mut imports = ImportsBuilder::new()
+    let imports = ImportsBuilder::new()
         .with_resolver("env", &EnvResolver);
 
     let mut runtime = Runtime;

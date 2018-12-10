@@ -18,7 +18,7 @@ fn write_op(op: WasmOperator, buf : &mut Vec<u8>) {
     buf.push(op as u8);
 }
 
-fn write_size(mut val: usize, mut buf: &mut Vec<u8>) {
+fn write_size(val: usize, mut buf: &mut Vec<u8>) {
     write_u64(val as u64, &mut buf);
 }
 
@@ -51,17 +51,17 @@ enum WasmSectionCode {
     Memory = 5,
     Global = 6,
     Export = 7,
-    Start = 8,
-    Element = 9,
+    // Start = 8,
+    // Element = 9,
     Code = 10,
-    Data = 11
+    // Data = 11
 }
 
 enum WasmExternalKind {
     Function = 0,
-    Table = 1,
-    Memory = 2,
-    Global = 4
+    // Table = 1,
+    // Memory = 2,
+    // Global = 4
 }
 
 enum WasmType {
@@ -289,15 +289,15 @@ fn emit_call(externs: &Vec<&Func>, fns: &Vec<&Func>, globals: &Vec<Var>, locals:
         */
 
 
-        ("add", [TypeSpec::I32, TypeSpec::I32]) => { buf.write_u8(WasmOperator::I32Add as u8); return Ok(TypeSpec::I32) },
+        ("add", [TypeSpec::I32, TypeSpec::I32]) => { write_op(WasmOperator::I32Add, &mut buf); return Ok(TypeSpec::I32) },
         _ => {
             if let Some(index) = fns.iter().position(|f| &f.name == func) {
                 // @TODO: Check types!, there could be multiple of every function name!
-                buf.write_u8(WasmOperator::Call as u8);
+                write_op(WasmOperator::Call, &mut buf);
                 write_size(index+externs.len(), &mut buf);
                 return Ok(fns[index].return_type);
             } else if let Some(index) = externs.iter().position(|f| &f.name == func) {
-                buf.write_u8(WasmOperator::Call as u8);
+                write_op(WasmOperator::Call, &mut buf);
                 write_size(index, &mut buf);
                 return Ok(externs[index].return_type)
             } else {
@@ -311,39 +311,39 @@ fn emit_exp(externs: &Vec<&Func>, fns: &Vec<&Func>, globals: &Vec<Var>, locals: 
     // @TODO: Don't return stuff, just have the value be the result of the match arm.
     match exp {
         // @TODO: This is writing everything as unsigned which is wrong!
-        Expression::I32(i) => { buf.write_u8(WasmOperator::I32Const as u8); write_u64(*i as u64, &mut buf); return Ok(TypeSpec::I32)},
-        Expression::U32(i) => { buf.write_u8(WasmOperator::I32Const as u8); write_u64(*i as u64, &mut buf); return Ok(TypeSpec::U32)},
-        Expression::I64(i) => { buf.write_u8(WasmOperator::I64Const as u8); write_u64(*i as u64, &mut buf); return Ok(TypeSpec::I64)},
-        Expression::U64(i) => { buf.write_u8(WasmOperator::I64Const as u8); write_u64(*i as u64, &mut buf); return Ok(TypeSpec::U64)},
-        Expression::F32(f) => { buf.write_u8(WasmOperator::F32Const as u8); buf.write_f32::<LittleEndian>(*f as f32).expect("oh no"); return Ok(TypeSpec::F32)},
-        Expression::F64(f) => { buf.write_u8(WasmOperator::F64Const as u8); buf.write_f64::<LittleEndian>(*f as f64).expect("oh no"); return Ok(TypeSpec::F64)},
+        Expression::I32(i) => { write_op(WasmOperator::I32Const, &mut buf); write_u64(*i as u64, &mut buf); return Ok(TypeSpec::I32)},
+        Expression::U32(i) => { write_op(WasmOperator::I32Const, &mut buf); write_u64(*i as u64, &mut buf); return Ok(TypeSpec::U32)},
+        Expression::I64(i) => { write_op(WasmOperator::I64Const, &mut buf); write_u64(*i as u64, &mut buf); return Ok(TypeSpec::I64)},
+        Expression::U64(i) => { write_op(WasmOperator::I64Const, &mut buf); write_u64(*i as u64, &mut buf); return Ok(TypeSpec::U64)},
+        Expression::F32(f) => { write_op(WasmOperator::F32Const, &mut buf); buf.write_f32::<LittleEndian>(*f as f32).expect("oh no"); return Ok(TypeSpec::F32)},
+        Expression::F64(f) => { write_op(WasmOperator::F64Const, &mut buf); buf.write_f64::<LittleEndian>(*f as f64).expect("oh no"); return Ok(TypeSpec::F64)},
         Expression::Unary {op, arg} => {
             let argument = emit_exp(externs, fns, globals, locals, buf, arg)?;
             match (op, argument) {
-                (Token::NOT, TypeSpec::I32) => { buf.write_u8(WasmOperator::I32Eqz as u8); return Ok(TypeSpec::I32) },
-                (Token::NOT, TypeSpec::I64) => { buf.write_u8(WasmOperator::I64Eqz as u8); return Ok(TypeSpec::I32) },
+                (Token::NOT, TypeSpec::I32) => { write_op(WasmOperator::I32Eqz, &mut buf); return Ok(TypeSpec::I32) },
+                (Token::NOT, TypeSpec::I64) => { write_op(WasmOperator::I64Eqz, &mut buf); return Ok(TypeSpec::I32) },
                 (Token::SUB, TypeSpec::I32) => {
-                    buf.write_u8(WasmOperator::I32Const as u8);
+                    write_op(WasmOperator::I32Const, &mut buf);
                     write_u64(0, &mut buf);
-                    buf.write_u8(WasmOperator::I32Sub as u8);
+                    write_op(WasmOperator::I32Sub, &mut buf);
                     return Ok(TypeSpec::I32);
                 },
                 (Token::SUB, TypeSpec::I64) => {
-                    buf.write_u8(WasmOperator::I64Const as u8);
+                    write_op(WasmOperator::I64Const, &mut buf);
                     write_u64(0, &mut buf);
-                    buf.write_u8(WasmOperator::I64Sub as u8);
+                    write_op(WasmOperator::I64Sub, &mut buf);
                     return Ok(TypeSpec::I64);
                 },
                 (Token::SUB, TypeSpec::F32) => {
-                    buf.write_u8(WasmOperator::F32Const as u8);
+                    write_op(WasmOperator::F32Const, &mut buf);
                     write_u64(0, &mut buf);
-                    buf.write_u8(WasmOperator::F32Sub as u8);
+                    write_op(WasmOperator::F32Sub, &mut buf);
                     return Ok(TypeSpec::F32);
                 },
                 (Token::SUB, TypeSpec::F64) => {
-                    buf.write_u8(WasmOperator::F64Const as u8);
+                    write_op(WasmOperator::F64Const, &mut buf);
                     write_u64(0, &mut buf);
-                    buf.write_u8(WasmOperator::F64Sub as u8);
+                    write_op(WasmOperator::F64Sub, &mut buf);
                     return Ok(TypeSpec::F64);
                 },
                 _ => { return Err(CompileError::UnknownOperator{ op: op.clone(), lhs: argument, rhs: TypeSpec::NULL }) }
@@ -353,89 +353,89 @@ fn emit_exp(externs: &Vec<&Func>, fns: &Vec<&Func>, globals: &Vec<Var>, locals: 
             let lhs = emit_exp(externs, fns, globals, locals, buf, left)?;
             let rhs = emit_exp(externs, fns, globals, locals, buf, right)?;
             match (op, lhs, rhs) {
-                (Token::EQUALTO, TypeSpec::I32, TypeSpec::I32)  => { buf.write_u8(WasmOperator::I32Eq as u8); return Ok(TypeSpec::I32) },
-                (Token::NEQUALTO, TypeSpec::I32, TypeSpec::I32) => { buf.write_u8(WasmOperator::I32Ne as u8); return Ok(TypeSpec::I32) },
-                (Token::EQUALTO, TypeSpec::U32, TypeSpec::U32)  => { buf.write_u8(WasmOperator::I32Eq as u8); return Ok(TypeSpec::I32) },
-                (Token::NEQUALTO, TypeSpec::U32, TypeSpec::U32) => { buf.write_u8(WasmOperator::I32Ne as u8); return Ok(TypeSpec::I32) },
-                (Token::LT, TypeSpec::I32, TypeSpec::I32) => { buf.write_u8(WasmOperator::I32LtS as u8); return Ok(TypeSpec::I32) },
-                (Token::LT, TypeSpec::U32, TypeSpec::U32) => { buf.write_u8(WasmOperator::I32LtU as u8); return Ok(TypeSpec::I32) },
-                (Token::GT, TypeSpec::I32, TypeSpec::I32) => { buf.write_u8(WasmOperator::I32GtS as u8); return Ok(TypeSpec::I32) },
-                (Token::GT, TypeSpec::U32, TypeSpec::U32) => { buf.write_u8(WasmOperator::I32GtU as u8); return Ok(TypeSpec::I32) },
-                (Token::LE, TypeSpec::I32, TypeSpec::I32) => { buf.write_u8(WasmOperator::I32LeS as u8); return Ok(TypeSpec::I32) },
-                (Token::LE, TypeSpec::U32, TypeSpec::U32) => { buf.write_u8(WasmOperator::I32LeU as u8); return Ok(TypeSpec::I32) },
-                (Token::GE, TypeSpec::I32, TypeSpec::I32) => { buf.write_u8(WasmOperator::I32GeS as u8); return Ok(TypeSpec::I32) },
-                (Token::GE, TypeSpec::U32, TypeSpec::U32) => { buf.write_u8(WasmOperator::I32GeU as u8); return Ok(TypeSpec::I32) },
+                (Token::EQUALTO, TypeSpec::I32, TypeSpec::I32)  => { write_op(WasmOperator::I32Eq, &mut buf); return Ok(TypeSpec::I32) },
+                (Token::NEQUALTO, TypeSpec::I32, TypeSpec::I32) => { write_op(WasmOperator::I32Ne, &mut buf); return Ok(TypeSpec::I32) },
+                (Token::EQUALTO, TypeSpec::U32, TypeSpec::U32)  => { write_op(WasmOperator::I32Eq, &mut buf); return Ok(TypeSpec::I32) },
+                (Token::NEQUALTO, TypeSpec::U32, TypeSpec::U32) => { write_op(WasmOperator::I32Ne, &mut buf); return Ok(TypeSpec::I32) },
+                (Token::LT, TypeSpec::I32, TypeSpec::I32) => { write_op(WasmOperator::I32LtS, &mut buf); return Ok(TypeSpec::I32) },
+                (Token::LT, TypeSpec::U32, TypeSpec::U32) => { write_op(WasmOperator::I32LtU, &mut buf); return Ok(TypeSpec::I32) },
+                (Token::GT, TypeSpec::I32, TypeSpec::I32) => { write_op(WasmOperator::I32GtS, &mut buf); return Ok(TypeSpec::I32) },
+                (Token::GT, TypeSpec::U32, TypeSpec::U32) => { write_op(WasmOperator::I32GtU, &mut buf); return Ok(TypeSpec::I32) },
+                (Token::LE, TypeSpec::I32, TypeSpec::I32) => { write_op(WasmOperator::I32LeS, &mut buf); return Ok(TypeSpec::I32) },
+                (Token::LE, TypeSpec::U32, TypeSpec::U32) => { write_op(WasmOperator::I32LeU, &mut buf); return Ok(TypeSpec::I32) },
+                (Token::GE, TypeSpec::I32, TypeSpec::I32) => { write_op(WasmOperator::I32GeS, &mut buf); return Ok(TypeSpec::I32) },
+                (Token::GE, TypeSpec::U32, TypeSpec::U32) => { write_op(WasmOperator::I32GeU, &mut buf); return Ok(TypeSpec::I32) },
 
-                (Token::EQUALTO, TypeSpec::I64, TypeSpec::I64)  => { buf.write_u8(WasmOperator::I64Eq as u8); return Ok(TypeSpec::I32) },
-                (Token::NEQUALTO, TypeSpec::I64, TypeSpec::I64) => { buf.write_u8(WasmOperator::I64Ne as u8); return Ok(TypeSpec::I32) },
-                (Token::EQUALTO, TypeSpec::U64, TypeSpec::U64)  => { buf.write_u8(WasmOperator::I64Eq as u8); return Ok(TypeSpec::I32) },
-                (Token::NEQUALTO, TypeSpec::U64, TypeSpec::U64) => { buf.write_u8(WasmOperator::I64Ne as u8); return Ok(TypeSpec::I32) },
-                (Token::LT, TypeSpec::I64, TypeSpec::I64) => { buf.write_u8(WasmOperator::I64LtS as u8); return Ok(TypeSpec::I32) },
-                (Token::LT, TypeSpec::U64, TypeSpec::U64) => { buf.write_u8(WasmOperator::I64LtU as u8); return Ok(TypeSpec::I32) },
-                (Token::GT, TypeSpec::I64, TypeSpec::I64) => { buf.write_u8(WasmOperator::I64GtS as u8); return Ok(TypeSpec::I32) },
-                (Token::GT, TypeSpec::U64, TypeSpec::U64) => { buf.write_u8(WasmOperator::I64GtU as u8); return Ok(TypeSpec::I32) },
-                (Token::LE, TypeSpec::I64, TypeSpec::I64) => { buf.write_u8(WasmOperator::I64LeS as u8); return Ok(TypeSpec::I32) },
-                (Token::LE, TypeSpec::U64, TypeSpec::U64) => { buf.write_u8(WasmOperator::I64LeU as u8); return Ok(TypeSpec::I32) },
-                (Token::GE, TypeSpec::I64, TypeSpec::I64) => { buf.write_u8(WasmOperator::I64GeS as u8); return Ok(TypeSpec::I32) },
-                (Token::GE, TypeSpec::U64, TypeSpec::U64) => { buf.write_u8(WasmOperator::I64GeU as u8); return Ok(TypeSpec::I32) },
+                (Token::EQUALTO, TypeSpec::I64, TypeSpec::I64)  => { write_op(WasmOperator::I64Eq, &mut buf); return Ok(TypeSpec::I32) },
+                (Token::NEQUALTO, TypeSpec::I64, TypeSpec::I64) => { write_op(WasmOperator::I64Ne, &mut buf); return Ok(TypeSpec::I32) },
+                (Token::EQUALTO, TypeSpec::U64, TypeSpec::U64)  => { write_op(WasmOperator::I64Eq, &mut buf); return Ok(TypeSpec::I32) },
+                (Token::NEQUALTO, TypeSpec::U64, TypeSpec::U64) => { write_op(WasmOperator::I64Ne, &mut buf); return Ok(TypeSpec::I32) },
+                (Token::LT, TypeSpec::I64, TypeSpec::I64) => { write_op(WasmOperator::I64LtS, &mut buf); return Ok(TypeSpec::I32) },
+                (Token::LT, TypeSpec::U64, TypeSpec::U64) => { write_op(WasmOperator::I64LtU, &mut buf); return Ok(TypeSpec::I32) },
+                (Token::GT, TypeSpec::I64, TypeSpec::I64) => { write_op(WasmOperator::I64GtS, &mut buf); return Ok(TypeSpec::I32) },
+                (Token::GT, TypeSpec::U64, TypeSpec::U64) => { write_op(WasmOperator::I64GtU, &mut buf); return Ok(TypeSpec::I32) },
+                (Token::LE, TypeSpec::I64, TypeSpec::I64) => { write_op(WasmOperator::I64LeS, &mut buf); return Ok(TypeSpec::I32) },
+                (Token::LE, TypeSpec::U64, TypeSpec::U64) => { write_op(WasmOperator::I64LeU, &mut buf); return Ok(TypeSpec::I32) },
+                (Token::GE, TypeSpec::I64, TypeSpec::I64) => { write_op(WasmOperator::I64GeS, &mut buf); return Ok(TypeSpec::I32) },
+                (Token::GE, TypeSpec::U64, TypeSpec::U64) => { write_op(WasmOperator::I64GeU, &mut buf); return Ok(TypeSpec::I32) },
 
-                (Token::EQUALTO, TypeSpec::F32, TypeSpec::F32)  => { buf.write_u8(WasmOperator::F32Eq as u8); return Ok(TypeSpec::I32) },
-                (Token::NEQUALTO, TypeSpec::F32, TypeSpec::F32) => { buf.write_u8(WasmOperator::F32Ne as u8); return Ok(TypeSpec::I32) },
-                (Token::LT, TypeSpec::F32, TypeSpec::F32) => { buf.write_u8(WasmOperator::F32Lt as u8); return Ok(TypeSpec::I32) },
-                (Token::GT, TypeSpec::F32, TypeSpec::F32) => { buf.write_u8(WasmOperator::F32Gt as u8); return Ok(TypeSpec::I32) },
-                (Token::LE, TypeSpec::F32, TypeSpec::F32) => { buf.write_u8(WasmOperator::F32Le as u8); return Ok(TypeSpec::I32) },
-                (Token::GE, TypeSpec::F32, TypeSpec::F32) => { buf.write_u8(WasmOperator::F32Ge as u8); return Ok(TypeSpec::I32) },
+                (Token::EQUALTO, TypeSpec::F32, TypeSpec::F32)  => { write_op(WasmOperator::F32Eq, &mut buf); return Ok(TypeSpec::I32) },
+                (Token::NEQUALTO, TypeSpec::F32, TypeSpec::F32) => { write_op(WasmOperator::F32Ne, &mut buf); return Ok(TypeSpec::I32) },
+                (Token::LT, TypeSpec::F32, TypeSpec::F32) => { write_op(WasmOperator::F32Lt, &mut buf); return Ok(TypeSpec::I32) },
+                (Token::GT, TypeSpec::F32, TypeSpec::F32) => { write_op(WasmOperator::F32Gt, &mut buf); return Ok(TypeSpec::I32) },
+                (Token::LE, TypeSpec::F32, TypeSpec::F32) => { write_op(WasmOperator::F32Le, &mut buf); return Ok(TypeSpec::I32) },
+                (Token::GE, TypeSpec::F32, TypeSpec::F32) => { write_op(WasmOperator::F32Ge, &mut buf); return Ok(TypeSpec::I32) },
 
-                (Token::EQUALTO, TypeSpec::F64, TypeSpec::F64)  => { buf.write_u8(WasmOperator::F64Eq as u8); return Ok(TypeSpec::I32) },
-                (Token::NEQUALTO, TypeSpec::F64, TypeSpec::F64) => { buf.write_u8(WasmOperator::F64Ne as u8); return Ok(TypeSpec::I32) },
-                (Token::LT, TypeSpec::F64, TypeSpec::F64) => { buf.write_u8(WasmOperator::F64Lt as u8); return Ok(TypeSpec::I32) },
-                (Token::GT, TypeSpec::F64, TypeSpec::F64) => { buf.write_u8(WasmOperator::F64Gt as u8); return Ok(TypeSpec::I32) },
-                (Token::LE, TypeSpec::F64, TypeSpec::F64) => { buf.write_u8(WasmOperator::F64Le as u8); return Ok(TypeSpec::I32) },
-                (Token::GE, TypeSpec::F64, TypeSpec::F64) => { buf.write_u8(WasmOperator::F64Ge as u8); return Ok(TypeSpec::I32) },
+                (Token::EQUALTO, TypeSpec::F64, TypeSpec::F64)  => { write_op(WasmOperator::F64Eq, &mut buf); return Ok(TypeSpec::I32) },
+                (Token::NEQUALTO, TypeSpec::F64, TypeSpec::F64) => { write_op(WasmOperator::F64Ne, &mut buf); return Ok(TypeSpec::I32) },
+                (Token::LT, TypeSpec::F64, TypeSpec::F64) => { write_op(WasmOperator::F64Lt, &mut buf); return Ok(TypeSpec::I32) },
+                (Token::GT, TypeSpec::F64, TypeSpec::F64) => { write_op(WasmOperator::F64Gt, &mut buf); return Ok(TypeSpec::I32) },
+                (Token::LE, TypeSpec::F64, TypeSpec::F64) => { write_op(WasmOperator::F64Le, &mut buf); return Ok(TypeSpec::I32) },
+                (Token::GE, TypeSpec::F64, TypeSpec::F64) => { write_op(WasmOperator::F64Ge, &mut buf); return Ok(TypeSpec::I32) },
 
-                (Token::ADD, TypeSpec::I32, TypeSpec::I32) => { buf.write_u8(WasmOperator::I32Add as u8); return Ok(TypeSpec::I32) },
-                (Token::SUB, TypeSpec::I32, TypeSpec::I32) => { buf.write_u8(WasmOperator::I32Sub as u8); return Ok(TypeSpec::I32) },
-                (Token::MUL, TypeSpec::I32, TypeSpec::I32) => { buf.write_u8(WasmOperator::I32Mul as u8); return Ok(TypeSpec::I32) },
-                (Token::DIV, TypeSpec::I32, TypeSpec::I32) => { buf.write_u8(WasmOperator::I32DivS as u8); return Ok(TypeSpec::I32) },
-                (Token::REM, TypeSpec::I32, TypeSpec::I32) => { buf.write_u8(WasmOperator::I32RemS as u8); return Ok(TypeSpec::I32) },
-                (Token::AND, TypeSpec::I32, TypeSpec::I32) => { buf.write_u8(WasmOperator::I32And as u8); return Ok(TypeSpec::I32) },
-                (Token::OR,  TypeSpec::I32, TypeSpec::I32) => { buf.write_u8(WasmOperator::I32Or as u8); return Ok(TypeSpec::I32) },
-                (Token::XOR, TypeSpec::I32, TypeSpec::I32) => { buf.write_u8(WasmOperator::I32Xor as u8); return Ok(TypeSpec::I32) },
-                (Token::ADD, TypeSpec::U32, TypeSpec::U32) => { buf.write_u8(WasmOperator::I32Add as u8); return Ok(TypeSpec::U32) },
-                (Token::SUB, TypeSpec::U32, TypeSpec::U32) => { buf.write_u8(WasmOperator::I32Sub as u8); return Ok(TypeSpec::U32) },
-                (Token::MUL, TypeSpec::U32, TypeSpec::U32) => { buf.write_u8(WasmOperator::I32Mul as u8); return Ok(TypeSpec::U32) },
-                (Token::DIV, TypeSpec::U32, TypeSpec::U32) => { buf.write_u8(WasmOperator::I32DivU as u8); return Ok(TypeSpec::U32) },
-                (Token::REM, TypeSpec::U32, TypeSpec::U32) => { buf.write_u8(WasmOperator::I32RemU as u8); return Ok(TypeSpec::U32) },
-                (Token::AND, TypeSpec::U32, TypeSpec::U32) => { buf.write_u8(WasmOperator::I32And as u8); return Ok(TypeSpec::U32) },
-                (Token::OR,  TypeSpec::U32, TypeSpec::U32) => { buf.write_u8(WasmOperator::I32Or as u8); return Ok(TypeSpec::U32) },
-                (Token::XOR, TypeSpec::U32, TypeSpec::U32) => { buf.write_u8(WasmOperator::I32Xor as u8); return Ok(TypeSpec::U32) },
+                (Token::ADD, TypeSpec::I32, TypeSpec::I32) => { write_op(WasmOperator::I32Add, &mut buf); return Ok(TypeSpec::I32) },
+                (Token::SUB, TypeSpec::I32, TypeSpec::I32) => { write_op(WasmOperator::I32Sub, &mut buf); return Ok(TypeSpec::I32) },
+                (Token::MUL, TypeSpec::I32, TypeSpec::I32) => { write_op(WasmOperator::I32Mul, &mut buf); return Ok(TypeSpec::I32) },
+                (Token::DIV, TypeSpec::I32, TypeSpec::I32) => { write_op(WasmOperator::I32DivS, &mut buf); return Ok(TypeSpec::I32) },
+                (Token::REM, TypeSpec::I32, TypeSpec::I32) => { write_op(WasmOperator::I32RemS, &mut buf); return Ok(TypeSpec::I32) },
+                (Token::AND, TypeSpec::I32, TypeSpec::I32) => { write_op(WasmOperator::I32And, &mut buf); return Ok(TypeSpec::I32) },
+                (Token::OR,  TypeSpec::I32, TypeSpec::I32) => { write_op(WasmOperator::I32Or, &mut buf); return Ok(TypeSpec::I32) },
+                (Token::XOR, TypeSpec::I32, TypeSpec::I32) => { write_op(WasmOperator::I32Xor, &mut buf); return Ok(TypeSpec::I32) },
+                (Token::ADD, TypeSpec::U32, TypeSpec::U32) => { write_op(WasmOperator::I32Add, &mut buf); return Ok(TypeSpec::U32) },
+                (Token::SUB, TypeSpec::U32, TypeSpec::U32) => { write_op(WasmOperator::I32Sub, &mut buf); return Ok(TypeSpec::U32) },
+                (Token::MUL, TypeSpec::U32, TypeSpec::U32) => { write_op(WasmOperator::I32Mul, &mut buf); return Ok(TypeSpec::U32) },
+                (Token::DIV, TypeSpec::U32, TypeSpec::U32) => { write_op(WasmOperator::I32DivU, &mut buf); return Ok(TypeSpec::U32) },
+                (Token::REM, TypeSpec::U32, TypeSpec::U32) => { write_op(WasmOperator::I32RemU, &mut buf); return Ok(TypeSpec::U32) },
+                (Token::AND, TypeSpec::U32, TypeSpec::U32) => { write_op(WasmOperator::I32And, &mut buf); return Ok(TypeSpec::U32) },
+                (Token::OR,  TypeSpec::U32, TypeSpec::U32) => { write_op(WasmOperator::I32Or, &mut buf); return Ok(TypeSpec::U32) },
+                (Token::XOR, TypeSpec::U32, TypeSpec::U32) => { write_op(WasmOperator::I32Xor, &mut buf); return Ok(TypeSpec::U32) },
 
-                (Token::ADD, TypeSpec::I64, TypeSpec::I64) => { buf.write_u8(WasmOperator::I64Add as u8);  return Ok(TypeSpec::I64) },
-                (Token::SUB, TypeSpec::I64, TypeSpec::I64) => { buf.write_u8(WasmOperator::I64Sub as u8);  return Ok(TypeSpec::I64) },
-                (Token::MUL, TypeSpec::I64, TypeSpec::I64) => { buf.write_u8(WasmOperator::I64Mul as u8);  return Ok(TypeSpec::I64) },
-                (Token::DIV, TypeSpec::I64, TypeSpec::I64) => { buf.write_u8(WasmOperator::I64DivS as u8); return Ok(TypeSpec::I64) },
-                (Token::REM, TypeSpec::I64, TypeSpec::I64) => { buf.write_u8(WasmOperator::I64RemS as u8); return Ok(TypeSpec::I64) },
-                (Token::AND, TypeSpec::I64, TypeSpec::I64) => { buf.write_u8(WasmOperator::I64And as u8);  return Ok(TypeSpec::I64) },
-                (Token::OR,  TypeSpec::I64, TypeSpec::I64) => { buf.write_u8(WasmOperator::I64Or as u8);   return Ok(TypeSpec::I64) },
-                (Token::XOR, TypeSpec::I64, TypeSpec::I64) => { buf.write_u8(WasmOperator::I64Xor as u8);  return Ok(TypeSpec::I64) },
-                (Token::ADD, TypeSpec::U64, TypeSpec::U64) => { buf.write_u8(WasmOperator::I64Add as u8);  return Ok(TypeSpec::U64) },
-                (Token::SUB, TypeSpec::U64, TypeSpec::U64) => { buf.write_u8(WasmOperator::I64Sub as u8);  return Ok(TypeSpec::U64) },
-                (Token::MUL, TypeSpec::U64, TypeSpec::U64) => { buf.write_u8(WasmOperator::I64Mul as u8);  return Ok(TypeSpec::U64) },
-                (Token::DIV, TypeSpec::U64, TypeSpec::U64) => { buf.write_u8(WasmOperator::I64DivU as u8); return Ok(TypeSpec::U64) },
-                (Token::REM, TypeSpec::U64, TypeSpec::U64) => { buf.write_u8(WasmOperator::I64RemU as u8); return Ok(TypeSpec::U64) },
-                (Token::AND, TypeSpec::U64, TypeSpec::U64) => { buf.write_u8(WasmOperator::I64And as u8);  return Ok(TypeSpec::U64) },
-                (Token::OR,  TypeSpec::U64, TypeSpec::U64) => { buf.write_u8(WasmOperator::I64Or as u8);   return Ok(TypeSpec::U64) },
-                (Token::XOR, TypeSpec::U64, TypeSpec::U64) => { buf.write_u8(WasmOperator::I64Xor as u8);  return Ok(TypeSpec::U64) },
+                (Token::ADD, TypeSpec::I64, TypeSpec::I64) => { write_op(WasmOperator::I64Add, &mut buf);  return Ok(TypeSpec::I64) },
+                (Token::SUB, TypeSpec::I64, TypeSpec::I64) => { write_op(WasmOperator::I64Sub, &mut buf);  return Ok(TypeSpec::I64) },
+                (Token::MUL, TypeSpec::I64, TypeSpec::I64) => { write_op(WasmOperator::I64Mul, &mut buf);  return Ok(TypeSpec::I64) },
+                (Token::DIV, TypeSpec::I64, TypeSpec::I64) => { write_op(WasmOperator::I64DivS, &mut buf); return Ok(TypeSpec::I64) },
+                (Token::REM, TypeSpec::I64, TypeSpec::I64) => { write_op(WasmOperator::I64RemS, &mut buf); return Ok(TypeSpec::I64) },
+                (Token::AND, TypeSpec::I64, TypeSpec::I64) => { write_op(WasmOperator::I64And, &mut buf);  return Ok(TypeSpec::I64) },
+                (Token::OR,  TypeSpec::I64, TypeSpec::I64) => { write_op(WasmOperator::I64Or, &mut buf);   return Ok(TypeSpec::I64) },
+                (Token::XOR, TypeSpec::I64, TypeSpec::I64) => { write_op(WasmOperator::I64Xor, &mut buf);  return Ok(TypeSpec::I64) },
+                (Token::ADD, TypeSpec::U64, TypeSpec::U64) => { write_op(WasmOperator::I64Add, &mut buf);  return Ok(TypeSpec::U64) },
+                (Token::SUB, TypeSpec::U64, TypeSpec::U64) => { write_op(WasmOperator::I64Sub, &mut buf);  return Ok(TypeSpec::U64) },
+                (Token::MUL, TypeSpec::U64, TypeSpec::U64) => { write_op(WasmOperator::I64Mul, &mut buf);  return Ok(TypeSpec::U64) },
+                (Token::DIV, TypeSpec::U64, TypeSpec::U64) => { write_op(WasmOperator::I64DivU, &mut buf); return Ok(TypeSpec::U64) },
+                (Token::REM, TypeSpec::U64, TypeSpec::U64) => { write_op(WasmOperator::I64RemU, &mut buf); return Ok(TypeSpec::U64) },
+                (Token::AND, TypeSpec::U64, TypeSpec::U64) => { write_op(WasmOperator::I64And, &mut buf);  return Ok(TypeSpec::U64) },
+                (Token::OR,  TypeSpec::U64, TypeSpec::U64) => { write_op(WasmOperator::I64Or, &mut buf);   return Ok(TypeSpec::U64) },
+                (Token::XOR, TypeSpec::U64, TypeSpec::U64) => { write_op(WasmOperator::I64Xor, &mut buf);  return Ok(TypeSpec::U64) },
 
-                (Token::ADD, TypeSpec::F32, TypeSpec::F32) => { buf.write_u8(WasmOperator::F32Add as u8);  return Ok(TypeSpec::F32) },
-                (Token::SUB, TypeSpec::F32, TypeSpec::F32) => { buf.write_u8(WasmOperator::F32Sub as u8);  return Ok(TypeSpec::F32) },
-                (Token::MUL, TypeSpec::F32, TypeSpec::F32) => { buf.write_u8(WasmOperator::F32Mul as u8);  return Ok(TypeSpec::F32) },
-                (Token::DIV, TypeSpec::F32, TypeSpec::F32) => { buf.write_u8(WasmOperator::F32Div as u8);  return Ok(TypeSpec::F32) },
-                
-                (Token::ADD, TypeSpec::F64, TypeSpec::F64) => { buf.write_u8(WasmOperator::F64Add as u8);  return Ok(TypeSpec::F64) },
-                (Token::SUB, TypeSpec::F64, TypeSpec::F64) => { buf.write_u8(WasmOperator::F64Sub as u8);  return Ok(TypeSpec::F64) },
-                (Token::MUL, TypeSpec::F64, TypeSpec::F64) => { buf.write_u8(WasmOperator::F64Mul as u8);  return Ok(TypeSpec::F64) },
-                (Token::DIV, TypeSpec::F64, TypeSpec::F64) => { buf.write_u8(WasmOperator::F64Div as u8);  return Ok(TypeSpec::F64) },
+                (Token::ADD, TypeSpec::F32, TypeSpec::F32) => { write_op(WasmOperator::F32Add, &mut buf);  return Ok(TypeSpec::F32) },
+                (Token::SUB, TypeSpec::F32, TypeSpec::F32) => { write_op(WasmOperator::F32Sub, &mut buf);  return Ok(TypeSpec::F32) },
+                (Token::MUL, TypeSpec::F32, TypeSpec::F32) => { write_op(WasmOperator::F32Mul, &mut buf);  return Ok(TypeSpec::F32) },
+                (Token::DIV, TypeSpec::F32, TypeSpec::F32) => { write_op(WasmOperator::F32Div, &mut buf);  return Ok(TypeSpec::F32) },  
+
+                (Token::ADD, TypeSpec::F64, TypeSpec::F64) => { write_op(WasmOperator::F64Add, &mut buf);  return Ok(TypeSpec::F64) },
+                (Token::SUB, TypeSpec::F64, TypeSpec::F64) => { write_op(WasmOperator::F64Sub, &mut buf);  return Ok(TypeSpec::F64) },
+                (Token::MUL, TypeSpec::F64, TypeSpec::F64) => { write_op(WasmOperator::F64Mul, &mut buf);  return Ok(TypeSpec::F64) },
+                (Token::DIV, TypeSpec::F64, TypeSpec::F64) => { write_op(WasmOperator::F64Div, &mut buf);  return Ok(TypeSpec::F64) },
 
                 // @TODO: Tokens and expressions for shifts and rotates.
                 _ => { return Err(CompileError::UnknownOperator{ op: op.clone(), lhs, rhs }) }
@@ -443,11 +443,11 @@ fn emit_exp(externs: &Vec<&Func>, fns: &Vec<&Func>, globals: &Vec<Var>, locals: 
         },
         Expression::Name(n) => {
             if let Some(index) = locals.iter().position(|var| &var.name == n) {
-                buf.write_u8(WasmOperator::GetLocal as u8);
+                write_op(WasmOperator::GetLocal, &mut buf);
                 write_size(index, &mut buf);
                 return Ok(locals[index].typespec);
             } else if let Some(index) = globals.iter().position(|var| &var.name == n) {
-                buf.write_u8(WasmOperator::GetGlobal as u8);
+                write_op(WasmOperator::GetGlobal, &mut buf);
                 write_size(index, &mut buf);
                 return Ok(globals[index].typespec);
             } else {
@@ -457,7 +457,6 @@ fn emit_exp(externs: &Vec<&Func>, fns: &Vec<&Func>, globals: &Vec<Var>, locals: 
         Expression::Call {func, args} => {
             emit_call(externs, fns, globals, locals, &mut buf, &func, args)
         }
-        _ => return Err(CompileError::NotImplemented)
     }
 }
 
@@ -468,7 +467,7 @@ fn emit_statement(externs: &Vec<&Func>, fns: &Vec<&Func>, globals: &Vec<Var>, lo
             let exp_type = emit_exp(externs, fns, globals, locals, &mut buf, expression)?;
             if let Some(index) = locals.iter().position(|v| &v.name == name) {
                 if locals[index].typespec == exp_type {
-                    buf.write_u8(WasmOperator::SetLocal as u8);
+                    write_op(WasmOperator::SetLocal, &mut buf);
                     write_size(index, &mut buf);
                     Ok(())
                 } else {
@@ -476,7 +475,7 @@ fn emit_statement(externs: &Vec<&Func>, fns: &Vec<&Func>, globals: &Vec<Var>, lo
                 }
             } else if let Some(index) = globals.iter().position(|v| &v.name == name) {
                 if globals[index].typespec == exp_type {
-                    buf.write_u8(WasmOperator::SetGlobal as u8);
+                    write_op(WasmOperator::SetGlobal, &mut buf);
                     write_size(index, &mut buf);
                     Ok(())
                 } else {
@@ -491,63 +490,63 @@ fn emit_statement(externs: &Vec<&Func>, fns: &Vec<&Func>, globals: &Vec<Var>, lo
             if exp_type != TypeSpec::I32 {
                 return Err(CompileError::TypeMismatch{expected: TypeSpec::I32, got: exp_type})
             }
-            buf.write_u8(WasmOperator::If as u8);
-            buf.write_u8(WasmType::EmptyBlock as u8);
+            write_op(WasmOperator::If, &mut buf);
+            write_type(WasmType::EmptyBlock, &mut buf);
             for stmt in then_block {
                 emit_statement(&externs, &fns, &globals, &locals, &mut buf, &stmt)?;
             }
             if else_block.len() > 0 {
-                buf.write_u8(WasmOperator::Else as u8);
+                write_op(WasmOperator::Else, &mut buf);
                 for stmt in else_block {
                     emit_statement(&externs, &fns, &globals, &locals, &mut buf, &stmt)?;
                 }
             }
-            buf.write_u8(WasmOperator::End as u8);
+            write_op(WasmOperator::End, &mut buf);
             Ok(())
         },
         Statement::WHILE { condition, block } => {
-            buf.write_u8(WasmOperator::Block as u8);
-            buf.write_u8(WasmType::EmptyBlock as u8);
+            write_op(WasmOperator::Block, &mut buf);
+            write_type(WasmType::EmptyBlock, &mut buf);
             
-            buf.write_u8(WasmOperator::Loop as u8);
-            buf.write_u8(WasmType::EmptyBlock as u8);
+            write_op(WasmOperator::Loop, &mut buf);
+            write_type(WasmType::EmptyBlock, &mut buf);
             let exp_type = emit_exp(externs, fns, globals, locals, &mut buf, condition)?;
             if exp_type != TypeSpec::I32 {
                 return Err(CompileError::TypeMismatch{expected: TypeSpec::I32, got: exp_type})
             }
-            buf.write_u8(WasmOperator::I32Eqz as u8);
-            buf.write_u8(WasmOperator::BrIf as u8);
+            write_op(WasmOperator::I32Eqz, &mut buf);
+            write_op(WasmOperator::BrIf, &mut buf);
             write_size(1, &mut buf);
             for stmt in block {
                 emit_statement(&externs, &fns, &globals, &locals, &mut buf, &stmt)?;
             }
-            buf.write_u8(WasmOperator::Br as u8);
+            write_op(WasmOperator::Br, &mut buf);
             write_size(0, &mut buf);
-            buf.write_u8(WasmOperator::End as u8);
-            buf.write_u8(WasmOperator::End as u8);
+            write_op(WasmOperator::End, &mut buf);
+            write_op(WasmOperator::End, &mut buf);
             Ok(())
         },
         Statement::FOR { setup, condition, iter, block } => {
             emit_statement(&externs, &fns, &globals, &locals, &mut buf, setup)?;
-            buf.write_u8(WasmOperator::Block as u8);
-            buf.write_u8(WasmType::EmptyBlock as u8);
-            buf.write_u8(WasmOperator::Loop as u8);
-            buf.write_u8(WasmType::EmptyBlock as u8);
+            write_op(WasmOperator::Block, &mut buf);
+            write_type(WasmType::EmptyBlock, &mut buf);
+            write_op(WasmOperator::Loop, &mut buf);
+            write_type(WasmType::EmptyBlock, &mut buf);
             let exp_type = emit_exp(externs, fns, globals, locals, &mut buf, condition)?;
             if exp_type != TypeSpec::I32 {
                 return Err(CompileError::TypeMismatch{expected: TypeSpec::I32, got: exp_type})
             }
-            buf.write_u8(WasmOperator::I32Eqz as u8);
-            buf.write_u8(WasmOperator::BrIf as u8);
+            write_op(WasmOperator::I32Eqz, &mut buf);
+            write_op(WasmOperator::BrIf, &mut buf);
             write_size(1, &mut buf);
             for stmt in block {
                 emit_statement(&externs, &fns, &globals, &locals, &mut buf, &stmt)?;
             }
             emit_statement(&externs, &fns, &globals, &locals, &mut buf, iter)?;
-            buf.write_u8(WasmOperator::Br as u8);
+            write_op(WasmOperator::Br, &mut buf);
             write_size(0, &mut buf);
-            buf.write_u8(WasmOperator::End as u8);
-            buf.write_u8(WasmOperator::End as u8);
+            write_op(WasmOperator::End, &mut buf);
+            write_op(WasmOperator::End, &mut buf);
             Ok(())
         },
         Statement::SWITCH { index, values, blocks, default } => {
@@ -581,45 +580,45 @@ fn emit_statement(externs: &Vec<&Func>, fns: &Vec<&Func>, globals: &Vec<Var>, lo
             //let mut num_blocks = 0;
 
             // outer block
-            buf.write_u8(WasmOperator::Block as u8);
-            buf.write_u8(WasmType::EmptyBlock as u8);
+            write_op(WasmOperator::Block, &mut buf);
+            write_type(WasmType::EmptyBlock, &mut buf);
 
             for i in (0..values.len()).rev() {
                 let val = values[i] as usize;
                 index_array[val] = i+1;
-                buf.write_u8(WasmOperator::Block as u8);
-                buf.write_u8(WasmType::EmptyBlock as u8);
+                write_op(WasmOperator::Block, &mut buf);
+                write_type(WasmType::EmptyBlock, &mut buf);
             }
             
-            buf.write_u8(WasmOperator::Block as u8);
-            buf.write_u8(WasmType::EmptyBlock as u8);
+            write_op(WasmOperator::Block, &mut buf);
+            write_type(WasmType::EmptyBlock, &mut buf);
             let index_type = emit_exp(externs, fns, globals, locals, &mut buf, index)?;
             if index_type != TypeSpec::I32 {
                 return Err(CompileError::TypeMismatch{expected: TypeSpec::I32, got: index_type})
             }
-            buf.write_u8(WasmOperator::BrTable as u8);
+            write_op(WasmOperator::BrTable, &mut buf);
             write_size((max_index+1) as usize, &mut buf);
             for v in index_array {
                 write_size(v, &mut buf);
             }
             write_size(0, &mut buf); // default
-            buf.write_u8(WasmOperator::End as u8);
+            write_op(WasmOperator::End, &mut buf);
 
             for stmt in default {
                 emit_statement(&externs, &fns, &globals, &locals, &mut buf, &stmt)?;
             }
             let mut break_level = values.len();
-            for i in (0..values.len()) {
-                buf.write_u8(WasmOperator::Br as u8);
+            for i in 0..values.len() {
+                write_op(WasmOperator::Br, &mut buf);
                 write_size(break_level, &mut buf);
                 break_level -= 1;
-                buf.write_u8(WasmOperator::End as u8);
+                write_op(WasmOperator::End, &mut buf);
                 for stmt in &blocks[i] {
                    emit_statement(&externs, &fns, &globals, &locals, &mut buf, &stmt)?;
                 }
             }
 
-            buf.write_u8(WasmOperator::End as u8);
+            write_op(WasmOperator::End, &mut buf);
             Ok(())
         },
         Statement::CALL {func, args} => {
@@ -750,14 +749,14 @@ pub fn emit_module(module: Module) -> Result<Vec<u8>, CompileError> {
                 write_type(WasmType::F32, &mut global_section);
                 write_u64(1, &mut global_section);
                 write_op(WasmOperator::F32Const, &mut global_section);
-                global_section.write_f32::<LittleEndian>(0.0);
+                global_section.write_f32::<LittleEndian>(0.0).unwrap();
                 write_op(WasmOperator::End, &mut global_section);
             },
             TypeSpec::F64 => {
                 write_type(WasmType::F64, &mut global_section);
                 write_u64(1, &mut global_section);
                 write_op(WasmOperator::F64Const, &mut global_section);
-                global_section.write_f64::<LittleEndian>(0.0);
+                global_section.write_f64::<LittleEndian>(0.0).unwrap();
                 write_op(WasmOperator::End, &mut global_section);
             },
             _ => () // @TODO: Throw  error on null
@@ -816,7 +815,7 @@ pub fn emit_module(module: Module) -> Result<Vec<u8>, CompileError> {
         }
 
         // end
-        func_body.write_u8(WasmOperator::End as u8);
+        write_op(WasmOperator::End, &mut func_body);
         write_size(func_body.len(), &mut code_section);
         write_bytes(&func_body, &mut code_section);
     
