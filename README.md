@@ -32,8 +32,6 @@ The best way to currently see how it works is to look at the [Tests](https://git
 ## Example
 [Example Glitch Project](https://glitch.com/~stee-example)
 
-**TODO** An example project for how to use it.
-
 ## Contact
 
 Email Me: dev@steve.computer
